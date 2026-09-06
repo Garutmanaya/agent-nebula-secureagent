@@ -16,7 +16,7 @@ This is intentionally different from the historical Connect shape: there is one 
 
 ## Composition boundary
 
-A server adapter receives only `application_config`, its protocol configuration, optional `nebula_config`, and immutable Platform `SkillDefinition` objects. It returns an application lifecycle object. Everything below that boundary belongs to Platform.
+A server adapter receives only `config`, its protocol configuration, optional `nebula_config`, and immutable Platform `SkillDefinition` objects. It returns an application lifecycle object. Everything below that boundary belongs to Platform.
 
 ## Current A2A constraint
 

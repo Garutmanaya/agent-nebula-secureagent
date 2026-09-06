@@ -1,8 +1,12 @@
+from pathlib import Path
+
 """Minimal protocol-neutral SecureAgent application using the A2A server adapter."""
 from agent_nebula_secureagent import ProtocolType, SecureAgent
 
-agent = SecureAgent("application.conf", nebula_config="nebula.conf")
-agent.use_protocol(ProtocolType.A2A, role="server", config="a2aserver.conf")
+HERE = Path(__file__).resolve().parent
+
+agent = SecureAgent(config=HERE / "secureagent.conf", nebula_config=HERE / "nebula.conf")
+agent.use_protocol(ProtocolType.A2A, role="server", config=HERE / "a2aserver.conf")
 
 
 @agent.skill("echo", description="Return the supplied message")

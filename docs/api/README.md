@@ -2,11 +2,11 @@
 
 ## `SecureAgent`
 
-### `SecureAgent(application_config="application.conf", *, nebula_config=None, protocol_registry=None)`
+### `SecureAgent(config="secureagent.conf", *, nebula_config=None, protocol_registry=None)`
 
 Creates the facade without starting infrastructure.
 
-- `application_config: str | Path` — Platform `application.conf`. Default: `application.conf`.
+- `config: str | Path` — Platform `secureagent.conf`. Default: `secureagent.conf`.
 - `nebula_config: str | Path | None` — optional Registry integration file. `None` means no Agent Nebula registration.
 - `protocol_registry: ProtocolAdapterRegistry | None` — dependency-injection/extension point. Normal applications omit it.
 
@@ -20,15 +20,13 @@ Adds one protocol role and returns the same `SecureAgent` for fluent setup.
 
 Duplicate protocol/role pairs are rejected. Recognition of a protocol name does not imply an installed adapter; composition fails explicitly when Platform does not provide the requested capability.
 
-### `skill(skill_id, *, description="", scopes=None, input_schema=None, output_schema=None)`
+### `skill(skill_id, *, description="", scopes=None)`
 
 Decorator registering transport-neutral business behavior.
 
 - `skill_id: str` — stable, nonblank capability identifier.
 - `description: str` — human-readable description.
 - `scopes: tuple[str, ...] | None` — required OAuth scopes. When omitted, `(skill_id,)` is used as the secure default.
-- `input_schema: Mapping[str, Any] | None` — optional JSON Schema for input.
-- `output_schema: Mapping[str, Any] | None` — optional JSON Schema for output.
 
 A handler receives a plain mapping payload. It may be synchronous or asynchronous and may return either a mapping or Platform `SkillResult`. Mapping results are converted to `SkillResult(data=...)`.
 

@@ -25,7 +25,7 @@ The public interface is deliberately not `SecureA2AAgent`, `SecureRestAgent`, or
 from agent_nebula_secureagent import ProtocolType, SecureAgent
 
 agent = SecureAgent(
-    "application.conf",
+    "secureagent.conf",
     nebula_config="nebula.conf",
 )
 agent.use_protocol(
@@ -65,7 +65,7 @@ Agent Nebula adds enterprise discovery/registration and platform lifecycle integ
 
 Configuration is split by responsibility:
 
-- `application.conf` — protocol-neutral application identity and filesystem roots.
+- `secureagent.conf` — protocol-neutral application identity and filesystem roots.
 - `a2aserver.conf` — A2A Agent Card, listener, TLS, interfaces, skills, and A2A security declaration.
 - `a2aclient.conf` — outbound A2A transport, TLS, credentials, and optional discovered OAuth client identity.
 - `nebula.conf` — optional Agent Nebula Registry endpoint, TLS, registration authentication, retry, and state behavior.

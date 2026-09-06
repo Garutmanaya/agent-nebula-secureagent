@@ -1,3 +1,4 @@
+from pathlib import Path
 
 import pytest
 
@@ -8,8 +9,21 @@ from agent_nebula_secureagent.exceptions import (
 )
 
 
+
+
+def test_secureagent_default_configuration_filename() -> None:
+    agent = SecureAgent()
+    assert agent._application_config == Path("secureagent.conf")
+
+
+def test_secureagent_accepts_user_selected_configuration_filename(tmp_path: Path) -> None:
+    config = tmp_path / "my-agent.conf"
+    agent = SecureAgent(config=config)
+    assert agent._application_config == config
+
+
 def test_common_protocol_api_does_not_require_a2a_specific_secure_agent() -> None:
-    agent = SecureAgent("application.conf")
+    agent = SecureAgent("secureagent.conf")
     agent.use_protocol("a2a", role="server", config="a2aserver.conf")
     assert agent.protocols[0].protocol is ProtocolType.A2A
 

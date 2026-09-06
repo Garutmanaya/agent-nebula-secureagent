@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+import inspect
 from pathlib import Path
 from typing import Any, TypeVar, cast
 
@@ -33,19 +34,19 @@ class SecureAgent:
     listener lifecycle; those responsibilities belong to Platform and SDK.
 
     Args:
-        application_config: Generic Platform application configuration file.
+        config: Generic SecureAgent configuration file. The filename is user-defined.
         nebula_config: Optional Agent Nebula Registry integration configuration.
         protocol_registry: Optional adapter registry for extension/testing.
     """
 
     def __init__(
         self,
-        application_config: str | Path = "application.conf",
+        config: str | Path = "secureagent.conf",
         *,
         nebula_config: str | Path | None = None,
         protocol_registry: ProtocolAdapterRegistry | None = None,
     ) -> None:
-        self._application_config = Path(application_config)
+        self._application_config = Path(config)
         self._nebula_config = Path(nebula_config) if nebula_config is not None else None
         self._protocols: dict[tuple[ProtocolType, ProtocolRole], ProtocolConfiguration] = {}
         self._skills: dict[str, SkillDefinition] = {}
@@ -113,8 +114,6 @@ class SecureAgent:
         *,
         description: str = "",
         scopes: tuple[str, ...] | None = None,
-        input_schema: Mapping[str, Any] | None = None,
-        output_schema: Mapping[str, Any] | None = None,
     ) -> Callable[[Handler], Handler]:
         """Register one transport-neutral business skill.
 
@@ -123,8 +122,6 @@ class SecureAgent:
             description: Human-readable capability description.
             scopes: OAuth scopes required by transports that enforce OAuth. When
                 omitted, the skill identifier is used as the secure default.
-            input_schema: Optional JSON Schema describing business input.
-            output_schema: Optional JSON Schema describing business output.
 
         Returns:
             Decorator that records the skill and returns the original function.
@@ -154,7 +151,6 @@ class SecureAgent:
 
             async def platform_handler(invocation: SkillInvocation) -> SkillResult:
                 result = cast(Callable[..., Any], handler)(invocation.payload)
-                import inspect
                 if inspect.isawaitable(result):
                     result = await result
                 if isinstance(result, SkillResult):
