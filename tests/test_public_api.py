@@ -183,3 +183,40 @@ def test_client_operation_requires_configured_client_role() -> None:
     agent = SecureAgent(protocol_registry=_client_registry())
     with pytest.raises(SecureAgentConfigurationError):
         asyncio.run(agent.send_message_to("https://provider.example", text="hello"))
+
+
+def test_discovered_invocation_passes_registry_resource_to_platform_client() -> None:
+    from agent_nebula_secureagent import DiscoveredAgent
+
+    agent = SecureAgent(protocol_registry=_client_registry())
+    agent.use_protocol("a2a", role="client", config="a2aclient.conf")
+    discovered = DiscoveredAgent(
+        agent_id="inventory",
+        display_name="Inventory",
+        a2a_endpoint="https://provider.example/a2a",
+        resource="https://provider.example",
+    )
+
+    result = asyncio.run(agent.send_message(
+        discovered,
+        data={"sku": "ABC"},
+        skill_id="inventory.lookup",
+    ))
+
+    assert result == ({"message": "ok"},)
+    operation, arguments = _RecordingClientAdapter.calls[-1]
+    assert operation == "send"
+    assert arguments["target"] == "https://provider.example/a2a"
+    assert arguments["resource"] == "https://provider.example"
+    assert arguments["skill_id"] == "inventory.lookup"
+
+
+def test_discovery_requires_nebula_configuration() -> None:
+    agent = SecureAgent(protocol_registry=_client_registry())
+    with pytest.raises(SecureAgentConfigurationError):
+        asyncio.run(agent.discover(capability="inventory.lookup"))
+
+
+def test_secureagent_close_is_noop_before_server_composition() -> None:
+    agent = SecureAgent(protocol_registry=_client_registry())
+    asyncio.run(agent.close())

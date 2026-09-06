@@ -16,3 +16,11 @@
 - Reused Platform skill models rather than Connect-specific runtime composition.
 - Added adapter registry and A2A server adapter backed by Platform.
 - Added comprehensive API and configuration documentation.
+
+## P1 client/discovery restoration
+
+- Restored Agent Nebula provider discovery through a Platform-owned Registry client.
+- Added stable `DiscoveredAgent` and `DiscoveredSkill` facade models.
+- Added discovered-provider A2A invocation with Registry resource propagation,
+  optional deterministic `skill_id`, and Platform-owned OAuth/DPoP negotiation.
+- Added deterministic SecureAgent server application cleanup.

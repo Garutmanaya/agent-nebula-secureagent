@@ -113,9 +113,10 @@ class A2AClientProtocolAdapter(ClientProtocolAdapter):
         context_id: str | None = None,
         task_id: str | None = None,
         skill_id: str | None = None,
+        resource: str | None = None,
     ) -> tuple[dict[str, Any], ...]:
         """Delegate one message, including optional skill selection, to Platform."""
-        adapter = A2AClientServiceFactory().create(protocol_config)
+        adapter = A2AClientServiceFactory().create(protocol_config, resource=resource)
         try:
             return await adapter.send_message(
                 target,

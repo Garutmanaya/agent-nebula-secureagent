@@ -6,6 +6,7 @@ import inspect
 from pathlib import Path
 from typing import Any, TypeVar, cast
 
+from agent_nebula_platform.integrations.nebula import NebulaDiscoveryServiceFactory
 from agent_nebula_platform.skills import (
     SkillDefinition,
     SkillHandler,
@@ -13,6 +14,7 @@ from agent_nebula_platform.skills import (
     SkillResult,
 )
 
+from .discovery import DiscoveredAgent, DiscoveryNormalizer
 from .exceptions import SecureAgentConfigurationError, SecureAgentSkillRegistrationError
 from .protocols import (
     A2AClientProtocolAdapter,
@@ -235,7 +237,81 @@ class SecureAgent:
             context_id=context_id,
             task_id=task_id,
             skill_id=skill_id,
+            resource=None,
         )
+
+    async def discover(
+        self,
+        *,
+        query: str | None = None,
+        capability: str | None = None,
+        category: str | None = None,
+        provider_id: str | None = None,
+        protocol: str | None = "A2A",
+        role: str | None = "A2A_PROVIDER",
+        tags: tuple[str, ...] = (),
+        limit: int = 20,
+    ) -> tuple[DiscoveredAgent, ...]:
+        """Discover providers through Platform-owned Agent Nebula transport."""
+        if self._nebula_config is None:
+            raise SecureAgentConfigurationError(
+                "discover() requires nebula_config on SecureAgent"
+            )
+        if not 1 <= limit <= 100:
+            raise SecureAgentConfigurationError(
+                "Discovery limit must be between 1 and 100"
+            )
+        parameters: dict[str, Any] = {
+            "limit": limit, "published_only": True, "sort_by": "relevance"
+        }
+        for name, value in (("q", query), ("capability", capability), ("category", category), ("provider_id", provider_id), ("protocol", protocol), ("role", role)):
+            if value and value.strip():
+                parameters[name] = value.strip()
+        normalized_tags = tuple(dict.fromkeys(tag.strip() for tag in tags if tag.strip()))
+        if normalized_tags:
+            parameters["tag"] = normalized_tags[0]
+        service = NebulaDiscoveryServiceFactory.create(self._nebula_config)
+        try:
+            payload = await service.search(parameters)
+            return DiscoveryNormalizer().normalize(payload)
+        finally:
+            await service.close()
+
+    async def send_message(
+        self,
+        agent: DiscoveredAgent,
+        *,
+        text: str | None = None,
+        data: Mapping[str, Any] | None = None,
+        context_id: str | None = None,
+        task_id: str | None = None,
+        skill_id: str | None = None,
+    ) -> tuple[dict[str, Any], ...]:
+        """Invoke a discovered A2A provider using Registry resource metadata."""
+        endpoint, resource = agent.require_a2a_invocation()
+        protocol_type, configuration = self._require_client_configuration(ProtocolType.A2A)
+        adapter = self._registry.require_client(protocol_type)
+        return await adapter.send_message(
+            protocol_config=configuration.configuration_file,
+            target=endpoint,
+            text=text,
+            data=data,
+            context_id=context_id,
+            task_id=task_id,
+            skill_id=skill_id,
+            resource=resource,
+        )
+
+    async def close(self) -> None:
+        """Close the composed server application when one exists."""
+        if self._application is None:
+            return
+        close = getattr(self._application, "close", None)
+        if close is not None:
+            result = close()
+            if inspect.isawaitable(result):
+                await result
+        self._application = None
 
     def compose(self):
         """Compose the configured server protocol into a Platform application.

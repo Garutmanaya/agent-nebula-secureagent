@@ -46,3 +46,14 @@ A2A wire models.
 A SecureAgent may configure both `role="server"` and `role="client"` for A2A.
 The server is composed by `compose()`/`run()` while outbound operations use the
 independently configured client adapter.
+
+## Agent Nebula discovery and secured invocation
+
+When `nebula_config` and an A2A client protocol are configured, `SecureAgent.discover()`
+delegates Registry access, TLS, and Registry authentication to Platform. The returned
+`DiscoveredAgent` keeps the Registry protected-resource identifier separate from the
+A2A endpoint. `SecureAgent.send_message()` passes both values to Platform so OAuth
+uses the authoritative Registry resource while the official A2A client uses the
+advertised endpoint. Static HTTP credentials, API keys, mTLS, OIDC, OAuth2,
+RFC 7591 dynamic registration, private-key JWT client authentication, and DPoP remain
+Platform/SDK responsibilities selected from the remote Agent Card.
