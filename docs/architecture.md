@@ -18,6 +18,10 @@ This is intentionally different from the historical Connect shape: there is one 
 
 A server adapter receives only `config`, its protocol configuration, optional `nebula_config`, and immutable Platform `SkillDefinition` objects. It returns an application lifecycle object. Everything below that boundary belongs to Platform.
 
-## Current A2A constraint
+For A2A, the adapter performs only the narrow type adaptation from protocol-neutral `SkillDefinition` objects to Platform's A2A executable-skill contract. Agent Card parsing and validation, official A2A request handling, extension processing, skill dispatch, security enforcement, hosting, and lifecycle remain Platform responsibilities.
 
-A2A 1.0 `SendMessage` does not provide a standard skill identifier. The current Platform A2A composer therefore accepts exactly one selected executable business skill. SecureAgent preserves this behavior and does not add proprietary wire metadata. Multi-skill A2A routing requires an explicit application/router design at the Platform layer.
+## A2A multi-skill dispatch
+
+Official A2A `SendMessage` does not provide a first-class skill identifier. Agent Nebula Platform addresses deterministic multi-skill invocation through the Agent Nebula A2A skill-selection extension using official A2A extension and metadata facilities; official A2A models are not modified.
+
+SecureAgent does not duplicate that extension. It passes every registered A2A business skill to Platform. Platform validates that each executable skill is published by the Agent Card and, for multi-skill providers, requires explicit client-side skill selection before dispatch. Single-skill providers remain compatible with ordinary A2A invocation because Platform can dispatch the only registered skill when the extension is not requested.

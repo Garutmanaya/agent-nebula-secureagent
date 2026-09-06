@@ -47,7 +47,7 @@ The Platform template supports the official A2A 1.0 Agent Card structure:
 | `...extensions[].description` | string | Extension description. |
 | `...extensions[].required` | boolean | Whether the extension is required. |
 | `...extensions[].params` | table | Extension-specific parameters. |
-| `agent_card.skills[].id` | string | Published skill identifier; must match the SecureAgent skill selected for current A2A composition. |
+| `agent_card.skills[].id` | string | Published skill identifier; each executable SecureAgent A2A skill must have a matching published identifier. |
 | `agent_card.skills[].name` | string | Published skill name. |
 | `agent_card.skills[].description` | string | Published skill description. |
 | `agent_card.skills[].tags` | list[string] | Discovery tags. |
@@ -73,3 +73,10 @@ OAuth flows represented by A2A 1.0 include `authorization_code`, `client_credent
 `[[agent_card.security_requirements]]` defines OR alternatives. Its `schemes` table maps scheme names to required scope lists. Multiple scheme entries inside one `schemes` map form an AND requirement. The same structure may appear under `[[agent_card.skills.security_requirements]]`.
 
 SecureAgent does not reinterpret these security declarations; Platform does.
+
+
+## Skill publication and multi-skill behavior
+
+SecureAgent passes all registered A2A business skills to Platform. Each registered `@agent.skill("...")` identifier must therefore correspond to an `agent_card.skills[].id` in this file. Platform validates the published/executable relationship during composition; SecureAgent does not duplicate that validation.
+
+When more than one executable skill is configured, Platform advertises the Agent Nebula A2A skill-selection extension as required and uses the client-selected `AgentSkill.id` for deterministic dispatch. With one executable skill, the extension is optional. Extension declaration, request metadata parsing, dispatch validation, and skill-specific security enforcement are Platform responsibilities rather than `a2aserver.conf` or SecureAgent responsibilities.

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import inspect
 from pathlib import Path
 
 from agent_nebula_platform.protocols.a2a.server.composition import (
@@ -31,7 +32,6 @@ class _A2AExecutableSkill:
             result = self.definition.handler(
                 SkillInvocation(skill_id=self.definition.skill_id, payload=dict(payload))
             )
-            import inspect
             if inspect.isawaitable(result):
                 result = await result
             if not isinstance(result, SkillResult):
@@ -60,18 +60,15 @@ class A2AServerProtocolAdapter(ServerProtocolAdapter):
     ):
         """Delegate A2A composition, security, Agent Card, and lifecycle to Platform.
 
-        A2A 1.0 SendMessage has no standard skill-id field. The current Platform
-        A2A composer therefore requires one unambiguous business skill rather
-        than inventing a proprietary routing field.
+        SecureAgent only adapts its protocol-neutral ``SkillDefinition`` objects
+        to Platform's A2A executable-skill contract. Platform owns Agent Card
+        validation, the Agent Nebula skill-selection extension, deterministic
+        dispatch, security enforcement, and official A2A request handling.
         """
-        if len(skills) != 1:
-            raise SecureAgentConfigurationError(
-                "The current A2A server composition requires exactly one business skill; "
-                "A2A 1.0 SendMessage does not define a standard skill identifier."
-            )
+        executable_skills = tuple(_A2AExecutableSkill(skill) for skill in skills)
         return A2AStandaloneApplicationComposer().compose(
             application_config=application_config,
             server_config=protocol_config,
-            skill=_A2AExecutableSkill(skills[0]),
+            skills=executable_skills,
             nebula_config=nebula_config,
         )

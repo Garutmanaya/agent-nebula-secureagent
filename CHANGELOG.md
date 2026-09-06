@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added SecureAgent A2A multi-skill composition by passing all registered business skills to Platform.
+- Removed the obsolete SecureAgent single-skill restriction; Platform owns deterministic skill selection and dispatch through the Agent Nebula A2A extension.
+- Updated A2A architecture and configuration documentation for multi-skill publication and repository boundaries.
+
 ## 0.1.0
 
 - Introduced the protocol-neutral `SecureAgent` facade.

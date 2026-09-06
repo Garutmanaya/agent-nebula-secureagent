@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Protocol-neutral developer interface for Agent Nebula Platform"
 requires-python = ">=3.12"
 dependencies = [
-  "agent-nebula-platform>=0.11.1,<1.0.0",
+  "agent-nebula-platform[standalone]>=0.11.1,<1.0.0",
 ]
 
 [project.optional-dependencies]
