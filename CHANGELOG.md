@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Restored direct A2A client capability through the new protocol-neutral SecureAgent adapter boundary.
+- Added Agent Card resolution, direct message invocation, deterministic `skill_id` forwarding, and simultaneous A2A server/client configuration.
+- Kept all A2A transport, security, extension, and wire-model behavior in Agent Nebula Platform.
+
 - Added SecureAgent A2A multi-skill composition by passing all registered business skills to Platform.
 - Removed the obsolete SecureAgent single-skill restriction; Platform owns deterministic skill selection and dispatch through the Agent Nebula A2A extension.
 - Updated A2A architecture and configuration documentation for multi-skill publication and repository boundaries.

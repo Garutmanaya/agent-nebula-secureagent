@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import asyncio
+
 import pytest
 
 from agent_nebula_secureagent import ProtocolType, SecureAgent
@@ -112,3 +114,72 @@ def test_a2a_adapter_preserves_single_skill_composition(monkeypatch) -> None:
     delegated = _compose_a2a_with_registered_skills(monkeypatch, agent)
 
     assert tuple(skill.skill_id for skill in delegated["skills"]) == ("general.hello",)
+
+
+class _RecordingClientAdapter:
+    """Capture the SecureAgent client boundary without invoking A2A infrastructure."""
+
+    protocol = ProtocolType.A2A
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    async def resolve_remote(self, **kwargs):
+        type(self).calls.append(("resolve", dict(kwargs)))
+        return {"name": "remote-agent"}
+
+    async def send_message(self, **kwargs):
+        type(self).calls.append(("send", dict(kwargs)))
+        return ({"message": "ok"},)
+
+
+def _client_registry():
+    from agent_nebula_secureagent.protocols import ProtocolAdapterRegistry
+
+    _RecordingClientAdapter.calls = []
+    return ProtocolAdapterRegistry(client_adapters=(_RecordingClientAdapter(),))
+
+
+def test_secureagent_resolves_agent_card_through_configured_client() -> None:
+    agent = SecureAgent(protocol_registry=_client_registry())
+    agent.use_protocol("a2a", role="client", config="a2aclient.conf")
+
+    card = asyncio.run(agent.resolve_agent_card("https://provider.example"))
+
+    assert card == {"name": "remote-agent"}
+    operation, arguments = _RecordingClientAdapter.calls[-1]
+    assert operation == "resolve"
+    assert arguments["protocol_config"] == Path("a2aclient.conf")
+    assert arguments["target"] == "https://provider.example"
+
+
+def test_secureagent_sends_selected_skill_through_configured_client() -> None:
+    agent = SecureAgent(protocol_registry=_client_registry())
+    agent.use_protocol("a2a", role="client", config="a2aclient.conf")
+
+    result = asyncio.run(agent.send_message_to(
+        "https://provider.example",
+        data={"sku": "ABC"},
+        skill_id="inventory.lookup",
+    ))
+
+    assert result == ({"message": "ok"},)
+    operation, arguments = _RecordingClientAdapter.calls[-1]
+    assert operation == "send"
+    assert arguments["skill_id"] == "inventory.lookup"
+    assert arguments["data"] == {"sku": "ABC"}
+
+
+def test_server_and_client_roles_can_be_configured_together() -> None:
+    agent = SecureAgent(protocol_registry=_client_registry())
+    agent.use_protocol("a2a", role="server", config="a2aserver.conf")
+    agent.use_protocol("a2a", role="client", config="a2aclient.conf")
+
+    assert tuple((item.protocol.value, item.role.value) for item in agent.protocols) == (
+        ("a2a", "server"),
+        ("a2a", "client"),
+    )
+
+
+def test_client_operation_requires_configured_client_role() -> None:
+    agent = SecureAgent(protocol_registry=_client_registry())
+    with pytest.raises(SecureAgentConfigurationError):
+        asyncio.run(agent.send_message_to("https://provider.example", text="hello"))

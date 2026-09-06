@@ -16,4 +16,33 @@ Every executable SecureAgent skill must have a corresponding `agent_card.skills[
 
 Skill-specific security requirements also remain a Platform concern. A Nebula-aware client can select a skill before invocation so Platform can resolve the corresponding security requirements and acquire least-privilege authorization. The provider validates authorization before the selected business handler is reached.
 
-A2A client functionality exists in Platform (`A2AClientServiceFactory`/`A2AClientAdapter`) and remains a Platform capability. The common SecureAgent protocol model already distinguishes client/server roles; a future public client facade should delegate to that service rather than reproduce it.
+A2A client functionality remains implemented in Platform (`A2AClientServiceFactory`/`A2AClientAdapter`). SecureAgent exposes it through a thin client protocol adapter and does not reproduce the transport or security implementation.
+
+## Client invocation
+
+SecureAgent exposes Platform's A2A client through the same `use_protocol()` model:
+
+```python
+agent.use_protocol("a2a", role="client", config="a2aclient.conf")
+
+card = await agent.resolve_agent_card("https://provider.example")
+responses = await agent.send_message_to(
+    "https://provider.example",
+    data={"sku": "ABC"},
+    skill_id="inventory.lookup",
+)
+```
+
+`resolve_agent_card()` returns a plain dictionary so applications do not depend on
+A2A protobuf types. `send_message_to()` delegates request construction, Agent Card
+validation, transport selection, TLS/security negotiation, and client cleanup to
+Platform.
+
+When `skill_id` is supplied, Platform validates it against the remote Agent Card
+and activates the Agent Nebula skill-selection extension using the official A2A
+extension service-parameter mechanism. SecureAgent does not construct or modify
+A2A wire models.
+
+A SecureAgent may configure both `role="server"` and `role="client"` for A2A.
+The server is composed by `compose()`/`run()` while outbound operations use the
+independently configured client adapter.

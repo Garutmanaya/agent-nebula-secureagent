@@ -1,17 +1,24 @@
 """A2A implementation of the protocol-neutral SecureAgent server contract."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 import inspect
+from typing import Any
 from pathlib import Path
 
+from agent_nebula_platform.protocols.a2a.client.client_service import A2AClientServiceFactory
 from agent_nebula_platform.protocols.a2a.server.composition import (
     A2AStandaloneApplicationComposer,
 )
 from agent_nebula_platform.skills import SkillDefinition, SkillInvocation, SkillResult
 
 from agent_nebula_secureagent.exceptions import SecureAgentConfigurationError
-from agent_nebula_secureagent.protocols.base import ProtocolType, ServerProtocolAdapter
+from agent_nebula_secureagent.protocols.base import (
+    ClientProtocolAdapter,
+    ProtocolType,
+    ServerProtocolAdapter,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,3 +79,51 @@ class A2AServerProtocolAdapter(ServerProtocolAdapter):
             skills=executable_skills,
             nebula_config=nebula_config,
         )
+
+
+class A2AClientProtocolAdapter(ClientProtocolAdapter):
+    """Thin SecureAgent bridge to Platform's official A2A client implementation.
+
+    No A2A wire model, transport, security, or extension behavior is implemented
+    here. Platform owns those concerns and is verified against ``a2a-sdk``.
+    """
+
+    @property
+    def protocol(self) -> ProtocolType:
+        """Identify this adapter as A2A."""
+        return ProtocolType.A2A
+
+    async def resolve_remote(
+        self, *, protocol_config: Path, target: str
+    ) -> Mapping[str, Any]:
+        """Resolve the official Agent Card through Platform."""
+        adapter = A2AClientServiceFactory().create(protocol_config)
+        try:
+            return await adapter.resolve_agent_card_document(target)
+        finally:
+            await adapter.close()
+
+    async def send_message(
+        self,
+        *,
+        protocol_config: Path,
+        target: str,
+        text: str | None = None,
+        data: Mapping[str, Any] | None = None,
+        context_id: str | None = None,
+        task_id: str | None = None,
+        skill_id: str | None = None,
+    ) -> tuple[dict[str, Any], ...]:
+        """Delegate one message, including optional skill selection, to Platform."""
+        adapter = A2AClientServiceFactory().create(protocol_config)
+        try:
+            return await adapter.send_message(
+                target,
+                text=text,
+                data=data,
+                context_id=context_id,
+                task_id=task_id,
+                skill_id=skill_id,
+            )
+        finally:
+            await adapter.close()

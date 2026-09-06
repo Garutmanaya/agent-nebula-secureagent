@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from agent_nebula_platform.skills import SkillDefinition
 
@@ -27,13 +28,7 @@ class ProtocolRole(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class ProtocolConfiguration:
-    """Configuration files associated with one protocol role.
-
-    Args:
-        protocol: Protocol implementation selected for this configuration.
-        role: Whether the configuration exposes a server or creates a client.
-        configuration_file: Protocol-owned configuration file.
-    """
+    """Configuration files associated with one protocol role."""
 
     protocol: ProtocolType
     role: ProtocolRole
@@ -68,3 +63,34 @@ class ServerProtocolAdapter(ABC):
         skills: tuple[SkillDefinition, ...],
     ) -> SecureAgentApplication:
         """Compose a Platform-owned server from facade-owned business definitions."""
+
+
+class ClientProtocolAdapter(ABC):
+    """Protocol-neutral outbound invocation contract implemented through Platform.
+
+    The contract intentionally uses plain mappings and scalar values. Official
+    protocol wire models remain owned by Agent Nebula Platform and its protocol SDK.
+    """
+
+    @property
+    @abstractmethod
+    def protocol(self) -> ProtocolType:
+        """Return the protocol implemented by this adapter."""
+
+    @abstractmethod
+    async def resolve_remote(self, *, protocol_config: Path, target: str) -> Mapping[str, Any]:
+        """Resolve protocol discovery metadata for a remote endpoint."""
+
+    @abstractmethod
+    async def send_message(
+        self,
+        *,
+        protocol_config: Path,
+        target: str,
+        text: str | None = None,
+        data: Mapping[str, Any] | None = None,
+        context_id: str | None = None,
+        task_id: str | None = None,
+        skill_id: str | None = None,
+    ) -> tuple[dict[str, Any], ...]:
+        """Send one protocol message without exposing protocol wire models."""

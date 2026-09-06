@@ -15,6 +15,7 @@ from agent_nebula_platform.skills import (
 
 from .exceptions import SecureAgentConfigurationError, SecureAgentSkillRegistrationError
 from .protocols import (
+    A2AClientProtocolAdapter,
     A2AServerProtocolAdapter,
     ProtocolAdapterRegistry,
     ProtocolConfiguration,
@@ -51,7 +52,8 @@ class SecureAgent:
         self._protocols: dict[tuple[ProtocolType, ProtocolRole], ProtocolConfiguration] = {}
         self._skills: dict[str, SkillDefinition] = {}
         self._registry = protocol_registry or ProtocolAdapterRegistry(
-            (A2AServerProtocolAdapter(),)
+            server_adapters=(A2AServerProtocolAdapter(),),
+            client_adapters=(A2AClientProtocolAdapter(),),
         )
         self._application = None
 
@@ -170,6 +172,70 @@ class SecureAgent:
             return handler
 
         return register
+
+    def _require_client_configuration(
+        self, protocol: ProtocolType | str
+    ) -> tuple[ProtocolType, ProtocolConfiguration]:
+        """Resolve one configured client role or fail with facade-level context."""
+        try:
+            protocol_type = ProtocolType(protocol)
+        except ValueError as exc:
+            raise SecureAgentConfigurationError(str(exc)) from exc
+        configuration = self._protocols.get((protocol_type, ProtocolRole.CLIENT))
+        if configuration is None:
+            raise SecureAgentConfigurationError(
+                f"Client protocol is not configured: {protocol_type.value}"
+            )
+        return protocol_type, configuration
+
+    async def resolve_agent_card(
+        self,
+        agent_url: str,
+        *,
+        protocol: ProtocolType | str = ProtocolType.A2A,
+    ) -> dict[str, Any]:
+        """Resolve a remote A2A Agent Card without exposing A2A wire models."""
+        protocol_type, configuration = self._require_client_configuration(protocol)
+        if protocol_type is not ProtocolType.A2A:
+            raise SecureAgentConfigurationError(
+                "resolve_agent_card() is available only for the A2A protocol"
+            )
+        adapter = self._registry.require_client(protocol_type)
+        return dict(
+            await adapter.resolve_remote(
+                protocol_config=configuration.configuration_file,
+                target=agent_url,
+            )
+        )
+
+    async def send_message_to(
+        self,
+        agent_url: str,
+        *,
+        text: str | None = None,
+        data: Mapping[str, Any] | None = None,
+        context_id: str | None = None,
+        task_id: str | None = None,
+        skill_id: str | None = None,
+        protocol: ProtocolType | str = ProtocolType.A2A,
+    ) -> tuple[dict[str, Any], ...]:
+        """Send through a configured client protocol using Platform-owned transport.
+
+        ``skill_id`` is a facade convenience. For A2A, Platform validates it
+        against the remote Agent Card and maps it to the Agent Nebula formal A2A
+        skill-selection extension; SecureAgent never changes official A2A models.
+        """
+        protocol_type, configuration = self._require_client_configuration(protocol)
+        adapter = self._registry.require_client(protocol_type)
+        return await adapter.send_message(
+            protocol_config=configuration.configuration_file,
+            target=agent_url,
+            text=text,
+            data=data,
+            context_id=context_id,
+            task_id=task_id,
+            skill_id=skill_id,
+        )
 
     def compose(self):
         """Compose the configured server protocol into a Platform application.

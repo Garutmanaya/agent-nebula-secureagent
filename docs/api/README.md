@@ -71,14 +71,14 @@ Immutable value object containing the selected `ProtocolType`, `ProtocolRole`, a
 
 ## `ProtocolAdapterRegistry`
 
-### `ProtocolAdapterRegistry(adapters=())`
-Creates a registry from server adapters.
+### `ProtocolAdapterRegistry(server_adapters=(), client_adapters=())`
+Creates a role-aware registry from server and client adapters.
 
-### `register(adapter)`
-Registers one `ServerProtocolAdapter`; duplicate protocol ownership raises `SecureAgentProtocolError`.
+### `register_server(adapter)` / `register_client(adapter)`
+Registers one role-specific protocol adapter; duplicate ownership for the same role raises `SecureAgentProtocolError`. `register(adapter)` remains a server-registration compatibility alias.
 
-### `require_server(protocol)`
-Returns the registered server adapter or raises `SecureAgentProtocolError`.
+### `require_server(protocol)` / `require_client(protocol)`
+Returns the registered role-specific adapter or raises `SecureAgentProtocolError`.
 
 ## Exceptions
 

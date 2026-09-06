@@ -1,6 +1,7 @@
 """Protocol-neutral public contracts and built-in adapters."""
-from .a2a import A2AServerProtocolAdapter
+from .a2a import A2AClientProtocolAdapter, A2AServerProtocolAdapter
 from .base import (
+    ClientProtocolAdapter,
     ProtocolConfiguration,
     ProtocolRole,
     ProtocolType,
@@ -9,7 +10,9 @@ from .base import (
 from .registry import ProtocolAdapterRegistry
 
 __all__ = [
+    "A2AClientProtocolAdapter",
     "A2AServerProtocolAdapter",
+    "ClientProtocolAdapter",
     "ProtocolAdapterRegistry",
     "ProtocolConfiguration",
     "ProtocolRole",
