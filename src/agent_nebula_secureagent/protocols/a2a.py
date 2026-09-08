@@ -140,3 +140,47 @@ class A2AClientProtocolAdapter(ClientProtocolAdapter):
             )
         finally:
             await adapter.close()
+
+    async def send_a2ui_action(
+        self,
+        *,
+        protocol_config: Path,
+        target: str,
+        name: str,
+        surface_id: str,
+        source_component_id: str,
+        context: Mapping[str, Any] | None = None,
+        data_model: Mapping[str, Any] | None = None,
+        want_response: bool = False,
+        action_id: str | None = None,
+        context_id: str | None = None,
+        task_id: str | None = None,
+        skill_id: str | None = None,
+        resource: str | None = None,
+        a2ui_config: Path | None = None,
+    ) -> tuple[dict[str, Any], ...]:
+        """Delegate an A2UI renderer action to Platform's A2A binding."""
+        a2ui = A2UIConfiguration.load(a2ui_config) if a2ui_config is not None else None
+        if a2ui is None or not a2ui.enabled:
+            raise SecureAgentConfigurationError(
+                "send_a2ui_action() requires enabled a2ui_config"
+            )
+        adapter = A2AClientServiceFactory().create(
+            protocol_config, resource=resource, a2ui_configuration=a2ui
+        )
+        try:
+            return await adapter.send_a2ui_action(
+                target,
+                name=name,
+                surface_id=surface_id,
+                source_component_id=source_component_id,
+                context=context,
+                data_model=data_model,
+                want_response=want_response,
+                action_id=action_id,
+                context_id=context_id,
+                task_id=task_id,
+                skill_id=skill_id,
+            )
+        finally:
+            await adapter.close()

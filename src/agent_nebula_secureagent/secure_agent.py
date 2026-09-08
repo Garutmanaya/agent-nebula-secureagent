@@ -245,6 +245,46 @@ class SecureAgent:
             a2ui_config=self._a2ui_config,
         )
 
+    async def send_a2ui_action(
+        self,
+        agent_url: str,
+        *,
+        name: str,
+        surface_id: str,
+        source_component_id: str,
+        context: Mapping[str, Any] | None = None,
+        data_model: Mapping[str, Any] | None = None,
+        want_response: bool = False,
+        action_id: str | None = None,
+        context_id: str | None = None,
+        task_id: str | None = None,
+        skill_id: str | None = None,
+        protocol: ProtocolType | str = ProtocolType.A2A,
+    ) -> tuple[dict[str, Any], ...]:
+        """Send one A2UI renderer action without exposing A2A wire details."""
+        if self._a2ui_config is None:
+            raise SecureAgentConfigurationError(
+                "send_a2ui_action() requires a2ui_config on SecureAgent"
+            )
+        protocol_type, configuration = self._require_client_configuration(protocol)
+        adapter = self._registry.require_client(protocol_type)
+        return await adapter.send_a2ui_action(
+            protocol_config=configuration.configuration_file,
+            target=agent_url,
+            name=name,
+            surface_id=surface_id,
+            source_component_id=source_component_id,
+            context=context,
+            data_model=data_model,
+            want_response=want_response,
+            action_id=action_id,
+            context_id=context_id,
+            task_id=task_id,
+            skill_id=skill_id,
+            resource=None,
+            a2ui_config=self._a2ui_config,
+        )
+
     async def discover(
         self,
         *,

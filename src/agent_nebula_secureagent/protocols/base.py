@@ -97,3 +97,24 @@ class ClientProtocolAdapter(ABC):
         a2ui_config: Path | None = None,
     ) -> tuple[dict[str, Any], ...]:
         """Send one protocol message without exposing protocol wire models."""
+
+    @abstractmethod
+    async def send_a2ui_action(
+        self,
+        *,
+        protocol_config: Path,
+        target: str,
+        name: str,
+        surface_id: str,
+        source_component_id: str,
+        context: Mapping[str, Any] | None = None,
+        data_model: Mapping[str, Any] | None = None,
+        want_response: bool = False,
+        action_id: str | None = None,
+        context_id: str | None = None,
+        task_id: str | None = None,
+        skill_id: str | None = None,
+        resource: str | None = None,
+        a2ui_config: Path | None = None,
+    ) -> tuple[dict[str, Any], ...]:
+        """Send one protocol-neutral A2UI renderer action."""

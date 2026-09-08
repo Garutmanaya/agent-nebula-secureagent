@@ -108,3 +108,7 @@ Returns the registered role-specific adapter or raises `SecureAgentProtocolError
 - `SecureAgentConfigurationError` — invalid facade/protocol configuration.
 - `SecureAgentSkillRegistrationError` — invalid or duplicate business skill.
 - `SecureAgentProtocolError` — requested protocol adapter is unavailable or duplicated.
+
+### `send_a2ui_action(agent_url, *, name, surface_id, source_component_id, ...)`
+
+Sends one A2UI v1.0 renderer action through the configured client protocol. `a2ui_config` must be enabled on `SecureAgent`. The public API accepts action/context/data-model values only; Platform owns A2A DataParts, `application/a2ui+json`, renderer metadata, and extension activation. `action_id` is required when `want_response=True`.

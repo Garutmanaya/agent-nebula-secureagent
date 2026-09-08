@@ -56,3 +56,9 @@ A2UI does not use `accepted_output_modes = ["a2ui"]`. It is carried as an A2A Da
 Platform owns A2UI protocol/version semantics and the A2UI-to-A2A binding. Providers own their domain-specific A2UI presentation. Orchestrators should treat provider A2UI as generic presentation data, and renderer applications are responsible for rendering the declared UI.
 
 SecureAgent deliberately does not duplicate Platform's A2UI builder, renderer, session, action, or transport implementation.
+
+## Renderer actions
+
+SecureAgent exposes `send_a2ui_action()` for the renderer-to-agent direction. The facade accepts transport-neutral action fields and delegates the A2A representation to Platform. Platform encodes the v1.0 `action` as an `application/a2ui+json` DataPart, activates the A2UI A2A extension, and carries `a2uiRendererDataModel` separately in message metadata when supplied.
+
+When `want_response=True`, callers must provide `action_id`. A provider can return the corresponding v1.0 `actionResponse` and additional surface/data-model updates through `SkillResult.ui`.
