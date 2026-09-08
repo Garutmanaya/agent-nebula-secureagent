@@ -48,3 +48,9 @@ algorithm = "ES256"
 | `client.oauth.algorithm` | string | default `ES256` | Nonblank configured algorithm. |
 
 When OAuth configuration is present and the remote Agent Card advertises OAuth, Platform can perform discovered OAuth client registration/token acquisition according to its A2A client implementation. SecureAgent does not implement this flow itself.
+
+## A2UI boundary
+
+A2UI settings do not belong in `a2aclient.conf`. Configure A2UI independently in `a2ui.conf` and pass that file through `SecureAgent(a2ui_config=...)`.
+
+A2UI is not selected by setting `client.accepted_output_modes` to `a2ui`. When A2UI is enabled and the remote Agent Card advertises the supported A2UI extension, Platform performs extension negotiation and contributes renderer capability metadata. A2UI responses are identified by the A2UI DataPart MIME type rather than by an invented A2A output mode.

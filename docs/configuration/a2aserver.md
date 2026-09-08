@@ -80,3 +80,9 @@ SecureAgent does not reinterpret these security declarations; Platform does.
 SecureAgent passes all registered A2A business skills to Platform. Each registered `@agent.skill("...")` identifier must therefore correspond to an `agent_card.skills[].id` in this file. Platform validates the published/executable relationship during composition; SecureAgent does not duplicate that validation.
 
 When more than one executable skill is configured, Platform advertises the Agent Nebula A2A skill-selection extension as required and uses the client-selected `AgentSkill.id` for deterministic dispatch. With one executable skill, the extension is optional. Extension declaration, request metadata parsing, dispatch validation, and skill-specific security enforcement are Platform responsibilities rather than `a2aserver.conf` or SecureAgent responsibilities.
+
+## A2UI boundary
+
+A2UI settings do not belong in `a2aserver.conf`. Configure A2UI independently in `a2ui.conf` and pass that file through `SecureAgent(a2ui_config=...)`.
+
+When enabled, Platform's isolated A2UI/A2A extension adapter contributes the A2UI capability to the official Agent Card. The A2A server configuration does not parse or own A2UI version, catalog, renderer-capability, or DataPart semantics.

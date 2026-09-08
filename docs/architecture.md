@@ -1,6 +1,6 @@
 # Architecture
 
-SecureAgent is a facade, not a runtime. Its stable responsibilities are: collect developer intent, register transport-neutral business skills, select protocol roles, and delegate composition to Platform.
+SecureAgent is a facade, not a runtime. Its stable responsibilities are to collect developer intent, register transport-neutral business skills, select protocol roles, and delegate composition to Platform.
 
 ## Dependency rule
 
@@ -8,17 +8,37 @@ SecureAgent is a facade, not a runtime. Its stable responsibilities are: collect
 
 The reverse dependency is forbidden. SecureAgent must not import low-level SDK OAuth/JOSE/JWT implementations directly and must not recreate Platform protocol plugins.
 
+## Configuration ownership
+
+Configuration is split by capability rather than accumulated in one application or protocol file:
+
+```text
+secureagent.conf   generic runtime/application settings
+a2aserver.conf     A2A server and Agent Card
+a2aclient.conf     A2A client
+a2ui.conf          A2UI protocol capability
+nebula.conf         optional Registry integration
+```
+
+A2UI is deliberately independent of A2A configuration. SecureAgent carries the optional `a2ui_config` reference across the facade boundary; Platform owns loading and validation.
+
 ## Common protocol interface
 
-`ProtocolType` names A2A, REST, and MCP. `ProtocolRole` names server/client direction. `ProtocolConfiguration` binds a protocol/role to its protocol-owned file. `ServerProtocolAdapter` is the extension contract. `ProtocolAdapterRegistry` resolves the implementation.
+`ProtocolType` names A2A, REST, and MCP. `ProtocolRole` names server/client direction. `ProtocolConfiguration` binds a protocol/role to its protocol-owned file. `ServerProtocolAdapter` and `ClientProtocolAdapter` are extension contracts. `ProtocolAdapterRegistry` resolves the implementation.
 
-This is intentionally different from the historical Connect shape: there is one `SecureAgent`; no protocol-specific SecureAgent subclass or parallel A2A facade is required.
+There is one `SecureAgent`; no protocol-specific SecureAgent subclass or parallel A2A facade is required.
 
 ## Composition boundary
 
-A server adapter receives only `config`, its protocol configuration, optional `nebula_config`, and immutable Platform `SkillDefinition` objects. It returns an application lifecycle object. Everything below that boundary belongs to Platform.
+A server adapter receives generic SecureAgent configuration, its protocol configuration, optional Nebula configuration, optional independent A2UI configuration, and immutable Platform `SkillDefinition` objects. It returns an application lifecycle object. Everything below that boundary belongs to Platform.
 
-For A2A, the adapter performs only the narrow type adaptation from protocol-neutral `SkillDefinition` objects to Platform's A2A executable-skill contract. Agent Card parsing and validation, official A2A request handling, extension processing, skill dispatch, security enforcement, hosting, and lifecycle remain Platform responsibilities.
+For A2A, the adapter performs only narrow adaptation from protocol-neutral `SkillDefinition` objects to Platform's executable-skill contract. It preserves the complete Platform `SkillResult`. Agent Card parsing and validation, official A2A request handling, extension processing, result mapping, security enforcement, hosting, and lifecycle remain Platform responsibilities.
+
+## A2UI boundary
+
+A2UI protocol/domain behavior belongs to `agent-nebula-platform.a2ui`. A2UI-over-A2A binding behavior belongs to Platform's A2A extension adapter. SecureAgent exposes only the independent configuration reference and `SkillResult` contract; it does not expose A2A extension objects, service parameters, DataParts, MIME handling, or renderer capability metadata.
+
+This separation allows A2UI protocol versions and A2A binding details to evolve without changing business skill code or unrelated security/runtime functionality.
 
 ## A2A multi-skill dispatch
 
