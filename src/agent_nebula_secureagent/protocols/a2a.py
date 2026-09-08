@@ -7,6 +7,7 @@ import inspect
 from typing import Any
 from pathlib import Path
 
+from agent_nebula_platform.a2ui.configuration import A2UIConfiguration
 from agent_nebula_platform.protocols.a2a.client.client_service import A2AClientServiceFactory
 from agent_nebula_platform.protocols.a2a.server.composition import (
     A2AStandaloneApplicationComposer,
@@ -45,7 +46,9 @@ class _A2AExecutableSkill:
                 raise SecureAgentConfigurationError(
                     f"Skill '{self.definition.skill_id}' must return SkillResult"
                 )
-            return result.data
+            # Preserve the complete protocol-neutral result. Platform owns
+            # transport mapping for business data, metadata, and optional A2UI.
+            return result
         return invoke
 
 
@@ -64,6 +67,7 @@ class A2AServerProtocolAdapter(ServerProtocolAdapter):
         protocol_config: Path,
         nebula_config: Path | None,
         skills: tuple[SkillDefinition, ...],
+        a2ui_config: Path | None = None,
     ):
         """Delegate A2A composition, security, Agent Card, and lifecycle to Platform.
 
@@ -73,11 +77,13 @@ class A2AServerProtocolAdapter(ServerProtocolAdapter):
         dispatch, security enforcement, and official A2A request handling.
         """
         executable_skills = tuple(_A2AExecutableSkill(skill) for skill in skills)
+        a2ui = A2UIConfiguration.load(a2ui_config) if a2ui_config is not None else None
         return A2AStandaloneApplicationComposer().compose(
             application_config=application_config,
             server_config=protocol_config,
             skills=executable_skills,
             nebula_config=nebula_config,
+            a2ui=a2ui,
         )
 
 
@@ -114,9 +120,15 @@ class A2AClientProtocolAdapter(ClientProtocolAdapter):
         task_id: str | None = None,
         skill_id: str | None = None,
         resource: str | None = None,
+        a2ui_config: Path | None = None,
     ) -> tuple[dict[str, Any], ...]:
         """Delegate one message, including optional skill selection, to Platform."""
-        adapter = A2AClientServiceFactory().create(protocol_config, resource=resource)
+        a2ui = A2UIConfiguration.load(a2ui_config) if a2ui_config is not None else None
+        adapter = A2AClientServiceFactory().create(
+            protocol_config,
+            resource=resource,
+            a2ui_configuration=a2ui,
+        )
         try:
             return await adapter.send_message(
                 target,

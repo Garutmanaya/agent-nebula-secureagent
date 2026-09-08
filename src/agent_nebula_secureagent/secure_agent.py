@@ -39,6 +39,8 @@ class SecureAgent:
     Args:
         config: Generic SecureAgent configuration file. The filename is user-defined.
         nebula_config: Optional Agent Nebula Registry integration configuration.
+        a2ui_config: Optional independent A2UI configuration file. SecureAgent
+            stores the location only; Platform owns parsing and validation.
         protocol_registry: Optional adapter registry for extension/testing.
     """
 
@@ -47,10 +49,12 @@ class SecureAgent:
         config: str | Path = "secureagent.conf",
         *,
         nebula_config: str | Path | None = None,
+        a2ui_config: str | Path | None = None,
         protocol_registry: ProtocolAdapterRegistry | None = None,
     ) -> None:
         self._application_config = Path(config)
         self._nebula_config = Path(nebula_config) if nebula_config is not None else None
+        self._a2ui_config = Path(a2ui_config) if a2ui_config is not None else None
         self._protocols: dict[tuple[ProtocolType, ProtocolRole], ProtocolConfiguration] = {}
         self._skills: dict[str, SkillDefinition] = {}
         self._registry = protocol_registry or ProtocolAdapterRegistry(
@@ -238,6 +242,7 @@ class SecureAgent:
             task_id=task_id,
             skill_id=skill_id,
             resource=None,
+            a2ui_config=self._a2ui_config,
         )
 
     async def discover(
@@ -300,6 +305,7 @@ class SecureAgent:
             task_id=task_id,
             skill_id=skill_id,
             resource=resource,
+            a2ui_config=self._a2ui_config,
         )
 
     async def close(self) -> None:
@@ -340,6 +346,7 @@ class SecureAgent:
             protocol_config=server.configuration_file,
             nebula_config=self._nebula_config,
             skills=self.skills,
+            a2ui_config=self._a2ui_config,
         )
         return self._application
 

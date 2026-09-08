@@ -220,3 +220,66 @@ def test_discovery_requires_nebula_configuration() -> None:
 def test_secureagent_close_is_noop_before_server_composition() -> None:
     agent = SecureAgent(protocol_registry=_client_registry())
     asyncio.run(agent.close())
+
+
+def test_a2a_executable_skill_preserves_complete_skill_result() -> None:
+    """SecureAgent must not discard metadata or A2UI before Platform mapping."""
+    from agent_nebula_platform.skills import SkillResult
+    from agent_nebula_secureagent.protocols.a2a import _A2AExecutableSkill
+
+    agent = SecureAgent()
+    expected = SkillResult(data={"value": 1}, metadata={"source": "test"})
+
+    @agent.skill("result.complete")
+    def complete(_payload):
+        return expected
+
+    executable = _A2AExecutableSkill(agent.skills[0])
+    result = asyncio.run(executable.handler({"input": True}))
+
+    assert result is expected
+    assert result.metadata == {"source": "test"}
+
+
+def test_secureagent_passes_independent_a2ui_config_to_server_adapter() -> None:
+    """The facade passes the A2UI path without parsing protocol configuration."""
+    class RecordingServerAdapter:
+        protocol = ProtocolType.A2A
+        arguments: dict[str, object] = {}
+
+        def compose(self, **kwargs):
+            type(self).arguments = dict(kwargs)
+            return object()
+
+    from agent_nebula_secureagent.protocols import ProtocolAdapterRegistry
+
+    adapter = RecordingServerAdapter()
+    agent = SecureAgent(
+        a2ui_config="a2ui.conf",
+        protocol_registry=ProtocolAdapterRegistry(server_adapters=(adapter,)),
+    )
+    agent.use_protocol("a2a", role="server", config="a2aserver.conf")
+
+    @agent.skill("general.hello")
+    def hello(payload):
+        return payload
+
+    agent.compose()
+
+    assert adapter.arguments["protocol_config"] == Path("a2aserver.conf")
+    assert adapter.arguments["a2ui_config"] == Path("a2ui.conf")
+
+
+def test_secureagent_passes_independent_a2ui_config_to_client_adapter() -> None:
+    """Outbound A2UI intent crosses the facade as configuration, not A2A metadata."""
+    agent = SecureAgent(
+        a2ui_config="a2ui.conf",
+        protocol_registry=_client_registry(),
+    )
+    agent.use_protocol("a2a", role="client", config="a2aclient.conf")
+
+    asyncio.run(agent.send_message_to("https://provider.example", text="hello"))
+
+    operation, arguments = _RecordingClientAdapter.calls[-1]
+    assert operation == "send"
+    assert arguments["a2ui_config"] == Path("a2ui.conf")

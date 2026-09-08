@@ -61,6 +61,7 @@ class ServerProtocolAdapter(ABC):
         protocol_config: Path,
         nebula_config: Path | None,
         skills: tuple[SkillDefinition, ...],
+        a2ui_config: Path | None = None,
     ) -> SecureAgentApplication:
         """Compose a Platform-owned server from facade-owned business definitions."""
 
@@ -93,5 +94,6 @@ class ClientProtocolAdapter(ABC):
         task_id: str | None = None,
         skill_id: str | None = None,
         resource: str | None = None,
+        a2ui_config: Path | None = None,
     ) -> tuple[dict[str, Any], ...]:
         """Send one protocol message without exposing protocol wire models."""
