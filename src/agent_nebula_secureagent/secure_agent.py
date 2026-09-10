@@ -241,7 +241,6 @@ class SecureAgent:
             context_id=context_id,
             task_id=task_id,
             skill_id=skill_id,
-            resource=None,
             a2ui_config=self._a2ui_config,
         )
 
@@ -281,7 +280,6 @@ class SecureAgent:
             context_id=context_id,
             task_id=task_id,
             skill_id=skill_id,
-            resource=None,
             a2ui_config=self._a2ui_config,
         )
 
@@ -332,19 +330,18 @@ class SecureAgent:
         task_id: str | None = None,
         skill_id: str | None = None,
     ) -> tuple[dict[str, Any], ...]:
-        """Invoke a discovered A2A provider using Registry resource metadata."""
-        endpoint, resource = agent.require_a2a_invocation()
+        """Invoke a discovered A2A provider using its authoritative Agent Card security."""
+        agent_card_location = agent.require_agent_card_location()
         protocol_type, configuration = self._require_client_configuration(ProtocolType.A2A)
         adapter = self._registry.require_client(protocol_type)
         return await adapter.send_message(
             protocol_config=configuration.configuration_file,
-            target=endpoint,
+            target=agent_card_location,
             text=text,
             data=data,
             context_id=context_id,
             task_id=task_id,
             skill_id=skill_id,
-            resource=resource,
             a2ui_config=self._a2ui_config,
         )
 

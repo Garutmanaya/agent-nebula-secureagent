@@ -93,7 +93,6 @@ class ClientProtocolAdapter(ABC):
         context_id: str | None = None,
         task_id: str | None = None,
         skill_id: str | None = None,
-        resource: str | None = None,
         a2ui_config: Path | None = None,
     ) -> tuple[dict[str, Any], ...]:
         """Send one protocol message without exposing protocol wire models."""
@@ -114,7 +113,6 @@ class ClientProtocolAdapter(ABC):
         context_id: str | None = None,
         task_id: str | None = None,
         skill_id: str | None = None,
-        resource: str | None = None,
         a2ui_config: Path | None = None,
     ) -> tuple[dict[str, Any], ...]:
         """Send one protocol-neutral A2UI renderer action."""

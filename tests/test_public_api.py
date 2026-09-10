@@ -185,7 +185,7 @@ def test_client_operation_requires_configured_client_role() -> None:
         asyncio.run(agent.send_message_to("https://provider.example", text="hello"))
 
 
-def test_discovered_invocation_passes_registry_resource_to_platform_client() -> None:
+def test_discovered_invocation_uses_agent_card_security_independent_of_registry_resource() -> None:
     from agent_nebula_secureagent import DiscoveredAgent
 
     agent = SecureAgent(protocol_registry=_client_registry())
@@ -193,8 +193,9 @@ def test_discovered_invocation_passes_registry_resource_to_platform_client() -> 
     discovered = DiscoveredAgent(
         agent_id="inventory",
         display_name="Inventory",
-        a2a_endpoint="https://provider.example/a2a",
-        resource="https://provider.example",
+        agent_card_url="https://provider.example/.well-known/agent-card.json",
+        # Registry projections are informational and must not become invocation authority.
+        a2a_endpoint="https://registry.example/stale-a2a-endpoint",
     )
 
     result = asyncio.run(agent.send_message(
@@ -206,8 +207,8 @@ def test_discovered_invocation_passes_registry_resource_to_platform_client() -> 
     assert result == ({"message": "ok"},)
     operation, arguments = _RecordingClientAdapter.calls[-1]
     assert operation == "send"
-    assert arguments["target"] == "https://provider.example/a2a"
-    assert arguments["resource"] == "https://provider.example"
+    assert arguments["target"] == "https://provider.example/.well-known/agent-card.json"
+    assert "resource" not in arguments
     assert arguments["skill_id"] == "inventory.lookup"
 
 

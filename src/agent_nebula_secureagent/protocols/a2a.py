@@ -119,14 +119,12 @@ class A2AClientProtocolAdapter(ClientProtocolAdapter):
         context_id: str | None = None,
         task_id: str | None = None,
         skill_id: str | None = None,
-        resource: str | None = None,
         a2ui_config: Path | None = None,
     ) -> tuple[dict[str, Any], ...]:
         """Delegate one message, including optional skill selection, to Platform."""
         a2ui = A2UIConfiguration.load(a2ui_config) if a2ui_config is not None else None
         adapter = A2AClientServiceFactory().create(
             protocol_config,
-            resource=resource,
             a2ui_configuration=a2ui,
         )
         try:
@@ -156,7 +154,6 @@ class A2AClientProtocolAdapter(ClientProtocolAdapter):
         context_id: str | None = None,
         task_id: str | None = None,
         skill_id: str | None = None,
-        resource: str | None = None,
         a2ui_config: Path | None = None,
     ) -> tuple[dict[str, Any], ...]:
         """Delegate an A2UI renderer action to Platform's A2A binding."""
@@ -166,7 +163,7 @@ class A2AClientProtocolAdapter(ClientProtocolAdapter):
                 "send_a2ui_action() requires enabled a2ui_config"
             )
         adapter = A2AClientServiceFactory().create(
-            protocol_config, resource=resource, a2ui_configuration=a2ui
+            protocol_config, a2ui_configuration=a2ui
         )
         try:
             return await adapter.send_a2ui_action(

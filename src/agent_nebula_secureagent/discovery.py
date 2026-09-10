@@ -19,7 +19,7 @@ class DiscoveredSkill:
 
 @dataclass(frozen=True, slots=True)
 class DiscoveredAgent:
-    """Protocol-neutral discovery result with secure A2A invocation metadata."""
+    """Protocol-neutral discovery result; remote protocol facts remain non-authoritative."""
 
     agent_id: str
     display_name: str
@@ -30,7 +30,6 @@ class DiscoveredAgent:
     tags: tuple[str, ...] = ()
     trust_status: str | None = None
     lifecycle_status: str | None = None
-    resource: str | None = None
     agent_card_url: str | None = None
     a2a_endpoint: str | None = None
     protocols: tuple[str, ...] = ()
@@ -39,16 +38,21 @@ class DiscoveredAgent:
 
     @property
     def invokable(self) -> bool:
-        """Return whether discovery supplied the metadata required for A2A invocation."""
-        return bool(self.resource and self.a2a_endpoint)
+        """Return whether discovery supplied a location from which to resolve the Agent Card."""
+        return bool(self.agent_card_url or self.a2a_endpoint)
 
-    def require_a2a_invocation(self) -> tuple[str, str]:
-        """Return A2A endpoint and OAuth resource, failing closed when incomplete."""
-        if not self.a2a_endpoint or not self.resource:
-            raise ValueError(
-                "Discovered agent does not expose both A2A endpoint and protected-resource metadata"
-            )
-        return self.a2a_endpoint, self.resource
+    def require_agent_card_location(self) -> str:
+        """Return discovery bootstrap data without treating it as invocation authority.
+
+        An explicit Agent Card URL is preferred. ``a2a_endpoint`` remains only as
+        a compatibility fallback for registries that publish a base location but
+        not an Agent Card URL. Platform resolves the authoritative Agent Card
+        before selecting the actual A2A interface or security mechanism.
+        """
+        location = self.agent_card_url or self.a2a_endpoint
+        if not location:
+            raise ValueError("Discovered agent does not expose an Agent Card location")
+        return location
 
 
 class DiscoveryNormalizer:
@@ -77,21 +81,11 @@ class DiscoveryNormalizer:
     def _agent(cls, record: Mapping[str, Any]) -> DiscoveredAgent | None:
         document = cls._document(record)
         endpoints = cls._first_mapping(record.get("endpoints"), document.get("endpoints"))
-        protected = cls._first_mapping(
-            record.get("protected_resource"),
-            record.get("protected_resource_metadata"),
-            document.get("protected_resource"),
-        )
         provider = cls._mapping(record.get("provider"))
         agent_id = cls._first_string(record.get("agent_id"), record.get("id"), record.get("external_agent_id"), document.get("id"))
         if agent_id is None:
             return None
-        a2a_endpoint = cls._first_string(record.get("a2a_endpoint"), endpoints.get("a2a"), document.get("url"))
-        resource = cls._first_string(
-            record.get("resource_identifier"), record.get("resource"), protected.get("resource"), record.get("base_url")
-        )
-        if resource is None and a2a_endpoint:
-            resource = a2a_endpoint.rstrip("/").removesuffix("/a2a")
+        a2a_endpoint = cls._first_string(record.get("a2a_endpoint"), endpoints.get("primary"), endpoints.get("a2a"), document.get("url"))
         categories = cls._strings(record.get("categories"))
         return DiscoveredAgent(
             agent_id=agent_id,
@@ -103,7 +97,6 @@ class DiscoveryNormalizer:
             tags=cls._strings(record.get("tags") or document.get("tags")),
             trust_status=cls._first_string(record.get("trust_status"), record.get("trust")),
             lifecycle_status=cls._first_string(record.get("lifecycle_status"), record.get("status")),
-            resource=resource,
             agent_card_url=cls._first_string(record.get("agent_card_url"), record.get("agent_card_uri"), endpoints.get("agent_card"), document.get("agent_card_url")),
             a2a_endpoint=a2a_endpoint,
             protocols=cls._strings(record.get("protocols") or document.get("protocols")),
