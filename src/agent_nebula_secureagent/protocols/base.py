@@ -108,8 +108,6 @@ class ClientProtocolAdapter(ABC):
         source_component_id: str,
         context: Mapping[str, Any] | None = None,
         data_model: Mapping[str, Any] | None = None,
-        want_response: bool = False,
-        action_id: str | None = None,
         context_id: str | None = None,
         task_id: str | None = None,
         skill_id: str | None = None,
