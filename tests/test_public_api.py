@@ -130,6 +130,11 @@ class _RecordingClientAdapter:
         type(self).calls.append(("send", dict(kwargs)))
         return ({"message": "ok"},)
 
+    async def send_a2ui_action(self, **kwargs):
+        """Record one protocol-neutral A2UI action delegation."""
+        type(self).calls.append(("a2ui_action", dict(kwargs)))
+        return ({"message": "a2ui-ok"},)
+
 
 def _client_registry():
     from agent_nebula_secureagent.protocols import ProtocolAdapterRegistry
@@ -284,3 +289,27 @@ def test_secureagent_passes_independent_a2ui_config_to_client_adapter() -> None:
     operation, arguments = _RecordingClientAdapter.calls[-1]
     assert operation == "send"
     assert arguments["a2ui_config"] == Path("a2ui.conf")
+
+
+def test_secureagent_sends_a2ui_action_response_options_through_configured_client() -> None:
+    """A2UI response options must propagate without undefined adapter state."""
+    agent = SecureAgent(a2ui_config="a2ui.conf", protocol_registry=_client_registry())
+    agent.use_protocol("a2a", role="client", config="a2aclient.conf")
+
+    result = asyncio.run(
+        agent.send_a2ui_action(
+            "https://provider.example",
+            name="parking.space.hold",
+            surface_id="parking-1",
+            source_component_id="space-1",
+            context={"spaceId": "L1-A-01"},
+            want_response=True,
+            action_id="action-1",
+        )
+    )
+
+    assert result == ({"message": "a2ui-ok"},)
+    operation, arguments = _RecordingClientAdapter.calls[-1]
+    assert operation == "a2ui_action"
+    assert arguments["want_response"] is True
+    assert arguments["action_id"] == "action-1"
