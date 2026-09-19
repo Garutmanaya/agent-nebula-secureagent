@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -61,6 +61,7 @@ class ServerProtocolAdapter(ABC):
         protocol_config: Path,
         nebula_config: Path | None,
         skills: tuple[SkillDefinition, ...],
+        a2ui_action_handler: Callable[..., Any] | None = None,
         a2ui_config: Path | None = None,
     ) -> SecureAgentApplication:
         """Compose a Platform-owned server from facade-owned business definitions."""
@@ -112,7 +113,6 @@ class ClientProtocolAdapter(ABC):
         action_id: str | None = None,
         context_id: str | None = None,
         task_id: str | None = None,
-        skill_id: str | None = None,
         a2ui_config: Path | None = None,
     ) -> tuple[dict[str, Any], ...]:
         """Send one protocol-neutral A2UI renderer action."""

@@ -8,6 +8,7 @@ from agent_nebula_secureagent import ProtocolType, SecureAgent
 from agent_nebula_secureagent.exceptions import (
     SecureAgentConfigurationError,
     SecureAgentProtocolError,
+    SecureAgentSkillRegistrationError,
 )
 from agent_nebula_secureagent.protocols.a2a import A2AServerProtocolAdapter
 
@@ -313,3 +314,81 @@ def test_secureagent_sends_a2ui_action_response_options_through_configured_clien
     assert operation == "a2ui_action"
     assert arguments["want_response"] is True
     assert arguments["action_id"] == "action-1"
+
+
+def test_skill_preserves_structured_contract_metadata() -> None:
+    agent = SecureAgent("schema-test")
+    schema = {"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object", "properties": {"airport": {"type": "string"}}, "required": ["airport"]}
+
+    @agent.skill("parking.search", schema_contract_id="https://agentnebula.ai/contracts/parking/search/v1", input_schema=schema)
+    def search(payload):
+        return payload
+
+    skill = agent.skills[0]
+    assert skill.schema_contract_id == "https://agentnebula.ai/contracts/parking/search/v1"
+    assert skill.input_schema == schema
+    assert skill.output_schema is None
+
+
+def test_skill_schema_requires_contract_id() -> None:
+    agent = SecureAgent("schema-test")
+    with pytest.raises(SecureAgentSkillRegistrationError, match="requires schema_contract_id"):
+        agent.skill("parking.search", input_schema={"type": "object"})
+
+
+def test_secureagent_passes_a2ui_action_handler_to_server_adapter() -> None:
+    """Server composition preserves the application-owned A2UI action callback."""
+    class RecordingServerAdapter:
+        protocol = ProtocolType.A2A
+        arguments: dict[str, object] = {}
+
+        def compose(self, **kwargs):
+            type(self).arguments = dict(kwargs)
+            return object()
+
+    from agent_nebula_secureagent.protocols import ProtocolAdapterRegistry
+
+    async def handle_action(action, payload):
+        return {"handled": action.name, "payload": dict(payload)}
+
+    adapter = RecordingServerAdapter()
+    agent = SecureAgent(
+        a2ui_config="a2ui.conf",
+        protocol_registry=ProtocolAdapterRegistry(server_adapters=(adapter,)),
+    )
+    agent.use_protocol("a2a", role="server", config="a2aserver.conf")
+    agent.set_a2ui_action_handler(handle_action)
+
+    @agent.skill("general.hello")
+    def hello(payload):
+        return payload
+
+    agent.compose()
+
+    assert adapter.arguments["a2ui_action_handler"] is handle_action
+
+
+def test_a2a_adapter_passes_a2ui_action_handler_to_platform(monkeypatch) -> None:
+    """A2A adapter forwards the application callback without interpreting events."""
+    agent = SecureAgent()
+
+    @agent.skill("general.hello")
+    def hello(payload):
+        return payload
+
+    async def handle_action(action, payload):
+        return {"handled": action.name}
+
+    monkeypatch.setattr(
+        "agent_nebula_secureagent.protocols.a2a.A2AStandaloneApplicationComposer",
+        _RecordingA2AComposer,
+    )
+    A2AServerProtocolAdapter().compose(
+        application_config=Path("secureagent.conf"),
+        protocol_config=Path("a2aserver.conf"),
+        nebula_config=None,
+        skills=agent.skills,
+        a2ui_action_handler=handle_action,
+    )
+
+    assert _RecordingA2AComposer.arguments["a2ui_action_handler"] is handle_action

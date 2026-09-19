@@ -12,6 +12,7 @@ from agent_nebula_platform.protocols.a2a.client.client_service import A2AClientS
 from agent_nebula_platform.protocols.a2a.server.composition import (
     A2AStandaloneApplicationComposer,
 )
+from agent_nebula_platform.protocols.a2a.server.execution import A2UIActionHandler
 from agent_nebula_platform.skills import SkillDefinition, SkillInvocation, SkillResult
 
 from agent_nebula_secureagent.exceptions import SecureAgentConfigurationError
@@ -32,6 +33,21 @@ class _A2AExecutableSkill:
     def skill_id(self) -> str:
         """Return the stable skill identifier published by the application."""
         return self.definition.skill_id
+
+    @property
+    def schema_contract_id(self) -> str | None:
+        """Expose the protocol-neutral contract identifier to Platform."""
+        return self.definition.schema_contract_id
+
+    @property
+    def input_schema(self) -> Mapping[str, Any] | None:
+        """Expose structured input metadata without constructing A2A models."""
+        return self.definition.input_schema
+
+    @property
+    def output_schema(self) -> Mapping[str, Any] | None:
+        """Expose structured output metadata without constructing A2A models."""
+        return self.definition.output_schema
 
     @property
     def handler(self):
@@ -67,6 +83,7 @@ class A2AServerProtocolAdapter(ServerProtocolAdapter):
         protocol_config: Path,
         nebula_config: Path | None,
         skills: tuple[SkillDefinition, ...],
+        a2ui_action_handler: A2UIActionHandler | None = None,
         a2ui_config: Path | None = None,
     ):
         """Delegate A2A composition, security, Agent Card, and lifecycle to Platform.
@@ -84,6 +101,7 @@ class A2AServerProtocolAdapter(ServerProtocolAdapter):
             skills=executable_skills,
             nebula_config=nebula_config,
             a2ui=a2ui,
+            a2ui_action_handler=a2ui_action_handler,
         )
 
 
@@ -153,7 +171,6 @@ class A2AClientProtocolAdapter(ClientProtocolAdapter):
         action_id: str | None = None,
         context_id: str | None = None,
         task_id: str | None = None,
-        skill_id: str | None = None,
         a2ui_config: Path | None = None,
     ) -> tuple[dict[str, Any], ...]:
         """Delegate an A2UI renderer action to Platform's A2A binding."""
@@ -177,7 +194,6 @@ class A2AClientProtocolAdapter(ClientProtocolAdapter):
                 action_id=action_id,
                 context_id=context_id,
                 task_id=task_id,
-                skill_id=skill_id,
-            )
+                )
         finally:
             await adapter.close()

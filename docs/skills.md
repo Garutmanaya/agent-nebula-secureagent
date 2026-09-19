@@ -15,4 +15,6 @@ SkillResult
 
 For A2A, Platform owns mapping these channels to official response parts. SecureAgent does not serialize A2UI or A2A DataParts itself.
 
-Input/output schemas are metadata contracts and should be valid JSON Schema documents appropriate to the application. Protocol adapters decide how those contracts are published by their protocol; SecureAgent does not encode A2A-specific `AgentSkill` objects in the generic skill API.
+Input/output schemas are metadata contracts and should be valid JSON Schema documents appropriate to the application. A schema-constrained skill also supplies an immutable, versioned `schema_contract_id`. Protocol adapters decide how those contracts are published; SecureAgent does not add non-standard fields to A2A `AgentSkill`.
+
+For A2A, Platform publishes these declarations through the A2A Schema Contract community extension Draft 0.1 (`https://w3id.org/a2a-schema-contract/draft/0.1`) using the official A2A 1.0 extension mechanism. SecureAgent itself remains protocol-neutral.

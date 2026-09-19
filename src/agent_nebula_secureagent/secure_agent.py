@@ -26,6 +26,7 @@ from .protocols import (
 )
 
 Handler = TypeVar("Handler", bound=Callable[..., Any])
+A2UIActionHandler = Callable[..., Any]
 
 
 class SecureAgent:
@@ -57,6 +58,7 @@ class SecureAgent:
         self._a2ui_config = Path(a2ui_config) if a2ui_config is not None else None
         self._protocols: dict[tuple[ProtocolType, ProtocolRole], ProtocolConfiguration] = {}
         self._skills: dict[str, SkillDefinition] = {}
+        self._a2ui_action_handler: A2UIActionHandler | None = None
         self._registry = protocol_registry or ProtocolAdapterRegistry(
             server_adapters=(A2AServerProtocolAdapter(),),
             client_adapters=(A2AClientProtocolAdapter(),),
@@ -122,6 +124,9 @@ class SecureAgent:
         *,
         description: str = "",
         scopes: tuple[str, ...] | None = None,
+        schema_contract_id: str | None = None,
+        input_schema: Mapping[str, Any] | None = None,
+        output_schema: Mapping[str, Any] | None = None,
     ) -> Callable[[Handler], Handler]:
         """Register one transport-neutral business skill.
 
@@ -130,6 +135,9 @@ class SecureAgent:
             description: Human-readable capability description.
             scopes: OAuth scopes required by transports that enforce OAuth. When
                 omitted, the skill identifier is used as the secure default.
+            schema_contract_id: Absolute immutable structured-contract identifier.
+            input_schema: Optional JSON Schema for structured skill input.
+            output_schema: Optional JSON Schema for structured skill output.
 
         Returns:
             Decorator that records the skill and returns the original function.
@@ -149,6 +157,11 @@ class SecureAgent:
         if not normalized_scopes or any(not scope for scope in normalized_scopes):
             raise SecureAgentSkillRegistrationError(
                 f"Skill '{normalized_id}' must contain only non-blank scopes"
+            )
+        normalized_contract_id = (schema_contract_id or "").strip() or None
+        if (input_schema is not None or output_schema is not None) and normalized_contract_id is None:
+            raise SecureAgentSkillRegistrationError(
+                f"Skill '{normalized_id}' requires schema_contract_id when a schema is declared"
             )
 
         def register(handler: Handler) -> Handler:
@@ -174,10 +187,25 @@ class SecureAgent:
                 handler=cast(SkillHandler, platform_handler),
                 description=description.strip(),
                 required_scopes=normalized_scopes,
+                schema_contract_id=normalized_contract_id,
+                input_schema=dict(input_schema) if input_schema is not None else None,
+                output_schema=dict(output_schema) if output_schema is not None else None,
             )
             return handler
 
         return register
+
+    def set_a2ui_action_handler(self, handler: A2UIActionHandler) -> SecureAgent:
+        """Set the application callback for A2UI renderer-to-agent actions.
+
+        The callback is server-side application behavior. SecureAgent only carries
+        it across the composition boundary; Platform parses and dispatches the
+        standards-defined A2UI action message.
+        """
+        if not callable(handler):
+            raise SecureAgentConfigurationError("A2UI action handler must be callable")
+        self._a2ui_action_handler = handler
+        return self
 
     def _require_client_configuration(
         self, protocol: ProtocolType | str
@@ -222,7 +250,6 @@ class SecureAgent:
         data: Mapping[str, Any] | None = None,
         context_id: str | None = None,
         task_id: str | None = None,
-        skill_id: str | None = None,
         protocol: ProtocolType | str = ProtocolType.A2A,
     ) -> tuple[dict[str, Any], ...]:
         """Send through a configured client protocol using Platform-owned transport.
@@ -240,7 +267,6 @@ class SecureAgent:
             data=data,
             context_id=context_id,
             task_id=task_id,
-            skill_id=skill_id,
             a2ui_config=self._a2ui_config,
         )
 
@@ -257,7 +283,6 @@ class SecureAgent:
         action_id: str | None = None,
         context_id: str | None = None,
         task_id: str | None = None,
-        skill_id: str | None = None,
         protocol: ProtocolType | str = ProtocolType.A2A,
     ) -> tuple[dict[str, Any], ...]:
         """Send one A2UI renderer action without exposing A2A wire details."""
@@ -279,7 +304,6 @@ class SecureAgent:
             action_id=action_id,
             context_id=context_id,
             task_id=task_id,
-            skill_id=skill_id,
             a2ui_config=self._a2ui_config,
         )
 
@@ -383,6 +407,7 @@ class SecureAgent:
             protocol_config=server.configuration_file,
             nebula_config=self._nebula_config,
             skills=self.skills,
+            a2ui_action_handler=self._a2ui_action_handler,
             a2ui_config=self._a2ui_config,
         )
         return self._application
