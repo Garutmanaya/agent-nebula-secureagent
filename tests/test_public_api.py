@@ -392,3 +392,32 @@ def test_a2a_adapter_passes_a2ui_action_handler_to_platform(monkeypatch) -> None
     )
 
     assert _RecordingA2AComposer.arguments["a2ui_action_handler"] is handle_action
+
+
+def test_a2ui_presentation_facade_uses_secureagent_configuration(tmp_path) -> None:
+    """Provider presentation composition stays behind the SecureAgent facade."""
+    a2ui_config = tmp_path / "a2ui.conf"
+    a2ui_config.write_text(
+        "[a2ui]\n"
+        "enabled = true\n"
+        "version = v1.0\n"
+        "supported_catalog_ids = https://example.test/catalog.json\n"
+        "default_catalog_id = https://example.test/catalog.json\n"
+        "accepts_inline_catalogs = false\n",
+        encoding="utf-8",
+    )
+    presentation_path = tmp_path / "presentation.json"
+    presentation_path.write_text(
+        '{"components":[{"id":"root","component":"Text","text":"Hello"}],"dataModel":{"value":"initial"}}',
+        encoding="utf-8",
+    )
+    agent = SecureAgent(a2ui_config=a2ui_config)
+
+    presentation = agent.load_a2ui_presentation(presentation_path)
+    surface = agent.create_a2ui_surface(presentation, surface_id="surface-1")
+    update = agent.update_a2ui_surface("surface-1", data_model={"value": "updated"})
+
+    create_document = surface.messages[0].document
+    assert create_document["createSurface"]["catalogId"] == "https://example.test/catalog.json"
+    assert create_document["createSurface"]["dataModel"] == {"value": "initial"}
+    assert update.messages[0].document["updateDataModel"]["value"] == {"value": "updated"}

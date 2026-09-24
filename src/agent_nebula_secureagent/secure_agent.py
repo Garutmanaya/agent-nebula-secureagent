@@ -5,7 +5,9 @@ from collections.abc import Callable, Mapping
 import inspect
 from pathlib import Path
 from typing import Any, TypeVar, cast
+from uuid import uuid4
 
+from agent_nebula_platform.a2ui import A2UIComposer, A2UIConfiguration, A2UIPresentation, A2UISurface
 from agent_nebula_platform.integrations.nebula import NebulaDiscoveryServiceFactory
 from agent_nebula_platform.skills import (
     SkillDefinition,
@@ -59,6 +61,7 @@ class SecureAgent:
         self._protocols: dict[tuple[ProtocolType, ProtocolRole], ProtocolConfiguration] = {}
         self._skills: dict[str, SkillDefinition] = {}
         self._a2ui_action_handler: A2UIActionHandler | None = None
+        self._a2ui_composer: A2UIComposer | None = None
         self._registry = protocol_registry or ProtocolAdapterRegistry(
             server_adapters=(A2AServerProtocolAdapter(),),
             client_adapters=(A2AClientProtocolAdapter(),),
@@ -194,6 +197,50 @@ class SecureAgent:
             return handler
 
         return register
+
+    def _require_a2ui_composer(self) -> A2UIComposer:
+        """Return the configuration-backed Platform composer for provider presentations."""
+        if self._a2ui_config is None:
+            raise SecureAgentConfigurationError(
+                "A2UI presentation requires a2ui_config on SecureAgent"
+            )
+        if self._a2ui_composer is None:
+            self._a2ui_composer = A2UIComposer(A2UIConfiguration.load(self._a2ui_config))
+        return self._a2ui_composer
+
+    def load_a2ui_presentation(self, path: str | Path) -> A2UIPresentation:
+        """Load one skill-owned declarative presentation through Platform."""
+        self._require_a2ui_composer()
+        return A2UIPresentation.load(Path(path))
+
+    def create_a2ui_surface(
+        self,
+        presentation: A2UIPresentation,
+        *,
+        surface_id: str | None = None,
+        data_model: Mapping[str, Any] | None = None,
+    ) -> A2UISurface:
+        """Create a configured A2UI surface without exposing Platform to application code."""
+        resolved_surface_id = surface_id or f"a2ui_{uuid4().hex}"
+        return self._require_a2ui_composer().surface_from_presentation(
+            surface_id=resolved_surface_id,
+            presentation=presentation,
+            data_model=dict(data_model) if data_model is not None else None,
+        )
+
+    def update_a2ui_surface(
+        self,
+        surface_id: str,
+        *,
+        data_model: Mapping[str, Any],
+        path: str = "/",
+    ) -> A2UISurface:
+        """Update one existing A2UI surface using the configured Platform composer."""
+        return self._require_a2ui_composer().update(
+            surface_id=surface_id,
+            data_model=dict(data_model),
+            path=path,
+        )
 
     def set_a2ui_action_handler(self, handler: A2UIActionHandler) -> SecureAgent:
         """Set the application callback for A2UI renderer-to-agent actions.
