@@ -23,13 +23,16 @@ Adds one protocol role and returns the same `SecureAgent` for fluent setup.
 
 Duplicate protocol/role pairs are rejected. Recognition of a protocol name does not imply an installed adapter; composition fails explicitly when Platform does not provide the requested capability.
 
-### `skill(skill_id, *, description="", scopes=None)`
+### `skill(skill_id, *, description="", scopes=None, schema_contract_id=None, input_schema=None, output_schema=None)`
 
 Decorator registering transport-neutral business behavior.
 
 - `skill_id: str` — stable, nonblank capability identifier.
 - `description: str` — human-readable description.
 - `scopes: tuple[str, ...] | None` — required OAuth scopes. When omitted, `(skill_id,)` is used as the secure default.
+- `schema_contract_id: str | None` — immutable schema-contract identifier required when input/output schemas are declared.
+- `input_schema: Mapping | None` — optional JSON Schema for structured input.
+- `output_schema: Mapping | None` — optional JSON Schema for structured output.
 
 A handler receives a plain mapping payload. It may be synchronous or asynchronous and may return either a mapping or Platform `SkillResult`. Mapping results are converted to `SkillResult(data=...)`.
 
@@ -67,6 +70,22 @@ Read-only tuple of `ProtocolConfiguration` objects.
 ### `application`
 
 The composed application after `compose()`; otherwise `None`.
+
+## Declarative A2UI provider operations
+
+### `load_a2ui_presentation(path)`
+Loads one skill-owned `presentation.json` through Platform validation. Presentation topology belongs in this JSON artifact rather than Python business logic.
+
+### `create_a2ui_surface(presentation, *, surface_id=None, data_model=None)`
+Creates a configured surface from the declarative presentation and optional dynamic business data. Platform owns protocol/version/catalog composition.
+
+### `update_a2ui_surface(surface_id, *, data_model, path="/")`
+Updates dynamic data for an existing surface. Use this for interaction-driven result changes instead of rebuilding stable component topology in Python.
+
+### `set_a2ui_action_handler(handler)`
+Registers the provider application callback for renderer actions. Platform continues to own A2UI message parsing and dispatch.
+
+Applications must not import Platform A2UI composers or construct raw A2UI envelopes. Mixed A2UI Basic and Agent Nebula Rich components are declared by configuration and `presentation.json`.
 
 ## A2A client operations
 

@@ -22,6 +22,26 @@ nebula.conf         optional Registry integration
 
 A2UI is deliberately independent of A2A configuration. SecureAgent carries the optional `a2ui_config` reference across the facade boundary; Platform owns loading and validation.
 
+
+## Application contract
+
+Application code uses `agent-nebula-secureagent` as its Agent Nebula API boundary. It must not depend directly on Platform protocol/composition APIs or SDK security primitives. The intended application split is:
+
+```text
+Python (`agent.py`)              Configuration / declarative artifacts
+-----------------------------   ---------------------------------------
+business calculations           runtime/application settings
+skill handlers                  Agent Card and published skills
+SecureAgent facade calls        A2A interfaces and security declarations
+                                A2UI capabilities/catalogs
+                                A2UI `presentation.json` component trees
+                                Agent Nebula Registry integration
+```
+
+For A2UI-enabled skills, Python owns dynamic business data while `presentation.json` owns presentation topology, bindings, actions, and catalog selection. Application code must not construct raw A2UI protocol envelopes or hardcode reusable component trees in Python.
+
+For A2A, published skill definitions are configuration-driven through `a2aserver.conf`; executable handlers bind to the same stable identifier with `@agent.skill(...)`. Schema-contract metadata remains attached to the executable skill declaration where required. Platform validates the relationship between executable and published skills.
+
 ## Common protocol interface
 
 `ProtocolType` names A2A, REST, and MCP. `ProtocolRole` names server/client direction. `ProtocolConfiguration` binds a protocol/role to its protocol-owned file. `ServerProtocolAdapter` and `ClientProtocolAdapter` are extension contracts. `ProtocolAdapterRegistry` resolves the implementation.

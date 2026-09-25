@@ -19,6 +19,9 @@ agent-nebula-sdk             OAuth/JWT/JWK/JOSE/DPoP and standards primitives
 
 ## Programming model
 
+SecureAgent follows a configuration-first model. Python is reserved for executable business behavior; Agent Card metadata, published skill definitions, interfaces, security declarations, protocol settings, A2UI capabilities, and Registry integration are configuration. When A2UI is enabled, component topology is declarative JSON rather than Python.
+
+
 The public interface is deliberately not `SecureA2AAgent`, `SecureRestAgent`, or `SecureMcpAgent`. `SecureAgent` is the common abstraction. Protocols are selected independently:
 
 ```python
@@ -105,6 +108,7 @@ This keeps protocol code out of the facade and prevents duplication of Platform'
 
 ## Documentation
 
+- [Getting started](docs/getting-started.md)
 - [Architecture](docs/architecture.md)
 - [Public API](docs/api/README.md)
 - [Configuration reference](docs/configuration/README.md)
