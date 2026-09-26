@@ -421,3 +421,13 @@ def test_a2ui_presentation_facade_uses_secureagent_configuration(tmp_path) -> No
     assert create_document["createSurface"]["catalogId"] == "https://example.test/catalog.json"
     assert create_document["createSurface"]["dataModel"] == {"value": "initial"}
     assert update.messages[0].document["updateDataModel"]["value"] == {"value": "updated"}
+
+
+def test_llm_observability_is_public() -> None:
+    """SecureAgent exposes Platform-neutral LLM usage observability types."""
+
+    from agent_nebula_secureagent import LlmCostEstimator, LlmUsageObserver, LlmUsageRecord
+
+    assert LlmCostEstimator is not None
+    assert LlmUsageObserver is not None
+    assert LlmUsageRecord is not None
