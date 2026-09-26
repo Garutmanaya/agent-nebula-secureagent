@@ -18,6 +18,7 @@ from agent_nebula_platform.skills import (
 
 from .discovery import DiscoveredAgent, DiscoveryNormalizer
 from .exceptions import SecureAgentConfigurationError, SecureAgentSkillRegistrationError
+from .logging import SecureAgentLoggingConfiguration, load_logging_configuration
 from .protocols import (
     A2AClientProtocolAdapter,
     A2AServerProtocolAdapter,
@@ -82,6 +83,12 @@ class SecureAgent:
     def application(self):
         """Return the composed Platform application after ``compose()``."""
         return self._application
+
+    @property
+    def logging(self) -> SecureAgentLoggingConfiguration:
+        """Return validated console logging settings from ``secureagent.conf``."""
+
+        return load_logging_configuration(self._application_config)
 
     def use_protocol(
         self,
