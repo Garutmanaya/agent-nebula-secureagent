@@ -124,8 +124,16 @@ class _RecordingClientAdapter:
     calls: list[tuple[str, dict[str, object]]] = []
 
     async def resolve_remote(self, **kwargs):
+        from types import SimpleNamespace
+
         type(self).calls.append(("resolve", dict(kwargs)))
-        return {"name": "remote-agent"}
+        return SimpleNamespace(name="remote-agent")
+
+    async def connect(self, **kwargs):
+        from types import SimpleNamespace
+
+        type(self).calls.append(("connect", dict(kwargs)))
+        return SimpleNamespace(close=lambda: None)
 
     async def send_message(self, **kwargs):
         type(self).calls.append(("send", dict(kwargs)))
@@ -150,9 +158,22 @@ def test_secureagent_resolves_agent_card_through_configured_client() -> None:
 
     card = asyncio.run(agent.resolve_agent_card("https://provider.example"))
 
-    assert card == {"name": "remote-agent"}
+    assert card.name == "remote-agent"
     operation, arguments = _RecordingClientAdapter.calls[-1]
     assert operation == "resolve"
+    assert arguments["protocol_config"] == Path("a2aclient.conf")
+    assert arguments["target"] == "https://provider.example"
+
+
+def test_secureagent_exposes_configured_native_a2a_client() -> None:
+    agent = SecureAgent(protocol_registry=_client_registry())
+    agent.use_protocol("a2a", role="client", config="a2aclient.conf")
+
+    client = asyncio.run(agent.a2a_client("https://provider.example"))
+
+    assert client is not None
+    operation, arguments = _RecordingClientAdapter.calls[-1]
+    assert operation == "connect"
     assert arguments["protocol_config"] == Path("a2aclient.conf")
     assert arguments["target"] == "https://provider.example"
 

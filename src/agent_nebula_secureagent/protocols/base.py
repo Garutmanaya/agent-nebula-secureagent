@@ -68,10 +68,11 @@ class ServerProtocolAdapter(ABC):
 
 
 class ClientProtocolAdapter(ABC):
-    """Protocol-neutral outbound invocation contract implemented through Platform.
+    """Client composition boundary between SecureAgent and a protocol SDK.
 
-    The contract intentionally uses plain mappings and scalar values. Official
-    protocol wire models remain owned by Agent Nebula Platform and its protocol SDK.
+    SecureAgent uses this abstraction only to apply configuration and obtain the
+    protocol SDK's native objects.  Adapters must not mirror or translate a native
+    SDK API into a second Agent Nebula API.
     """
 
     @property
@@ -80,8 +81,12 @@ class ClientProtocolAdapter(ABC):
         """Return the protocol implemented by this adapter."""
 
     @abstractmethod
-    async def resolve_remote(self, *, protocol_config: Path, target: str) -> Mapping[str, Any]:
-        """Resolve protocol discovery metadata for a remote endpoint."""
+    async def resolve_remote(self, *, protocol_config: Path, target: str) -> Any:
+        """Resolve and return the protocol SDK's native remote descriptor."""
+
+    @abstractmethod
+    async def connect(self, *, protocol_config: Path, target: str) -> Any:
+        """Return a configured native protocol SDK client for ``target``."""
 
     @abstractmethod
     async def send_message(

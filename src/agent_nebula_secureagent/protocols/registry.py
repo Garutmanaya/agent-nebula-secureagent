@@ -44,6 +44,11 @@ class ProtocolAdapterRegistry:
             )
         self._client_adapters[adapter.protocol] = adapter
 
+    @property
+    def client_adapters(self) -> tuple[ClientProtocolAdapter, ...]:
+        """Return registered client adapters for facade-owned lifecycle cleanup."""
+        return tuple(self._client_adapters.values())
+
     def require_server(self, protocol: ProtocolType) -> ServerProtocolAdapter:
         """Return the server adapter for a protocol or fail explicitly."""
         adapter = self._server_adapters.get(protocol)

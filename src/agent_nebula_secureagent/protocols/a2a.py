@@ -106,11 +106,19 @@ class A2AServerProtocolAdapter(ServerProtocolAdapter):
 
 
 class A2AClientProtocolAdapter(ClientProtocolAdapter):
-    """Thin SecureAgent bridge to Platform's official A2A client implementation.
+    """Compose native ``a2a-sdk`` clients through Agent Nebula Platform.
 
-    No A2A wire model, transport, security, or extension behavior is implemented
-    here. Platform owns those concerns and is verified against ``a2a-sdk``.
+    AGENT NEBULA INTEGRATION:
+    Platform adds configuration-driven TLS, authentication/authorization and
+    Agent Nebula extension interceptors while the returned client and all standard
+    A2A operations remain owned by ``a2a-sdk``.  This adapter intentionally does
+    not mirror the SDK's task, streaming, push-notification, or card APIs.
     """
+
+    def __init__(self) -> None:
+        # Keep Platform composition resources alive for the lifetime of native
+        # clients returned by ``connect``.  SecureAgent.close() releases them.
+        self._native_client_services = []
 
     @property
     def protocol(self) -> ProtocolType:
@@ -119,13 +127,36 @@ class A2AClientProtocolAdapter(ClientProtocolAdapter):
 
     async def resolve_remote(
         self, *, protocol_config: Path, target: str
-    ) -> Mapping[str, Any]:
-        """Resolve the official Agent Card through Platform."""
+    ):
+        """Resolve and return the native ``a2a.types.AgentCard`` object."""
         adapter = A2AClientServiceFactory().create(protocol_config)
         try:
-            return await adapter.resolve_agent_card_document(target)
+            return await adapter.resolve_agent_card(target)
         finally:
             await adapter.close()
+
+    async def connect(self, *, protocol_config: Path, target: str):
+        """Return a configured native ``a2a.client.Client``.
+
+        AGENT NEBULA INTEGRATION:
+        Platform configures transport security and credential interceptors before
+        returning the official SDK client.  Callers use the normal ``a2a-sdk``
+        API directly and are responsible for closing that client.
+        """
+        adapter = A2AClientServiceFactory().create(protocol_config)
+        try:
+            client = await adapter.connect(target)
+        except Exception:
+            await adapter.close()
+            raise
+        self._native_client_services.append(adapter)
+        return client
+
+    async def close(self) -> None:
+        """Release Platform resources retained for native A2A clients."""
+        services, self._native_client_services = self._native_client_services, []
+        for service in services:
+            await service.close()
 
     async def send_message(
         self,

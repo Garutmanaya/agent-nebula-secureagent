@@ -281,19 +281,43 @@ class SecureAgent:
         agent_url: str,
         *,
         protocol: ProtocolType | str = ProtocolType.A2A,
-    ) -> dict[str, Any]:
-        """Resolve a remote A2A Agent Card without exposing A2A wire models."""
+    ):
+        """Resolve and return the official ``a2a.types.AgentCard``.
+
+        This method performs only configuration-driven resolution.  SecureAgent
+        deliberately returns the native SDK model instead of maintaining a second
+        AgentCard representation.
+        """
         protocol_type, configuration = self._require_client_configuration(protocol)
         if protocol_type is not ProtocolType.A2A:
             raise SecureAgentConfigurationError(
                 "resolve_agent_card() is available only for the A2A protocol"
             )
         adapter = self._registry.require_client(protocol_type)
-        return dict(
-            await adapter.resolve_remote(
-                protocol_config=configuration.configuration_file,
-                target=agent_url,
-            )
+        return await adapter.resolve_remote(
+            protocol_config=configuration.configuration_file,
+            target=agent_url,
+        )
+
+    async def a2a_client(self, agent_url: str):
+        """Return a configured native ``a2a.client.Client``.
+
+        AGENT NEBULA INTEGRATION:
+        SecureAgent contributes only external configuration. Platform composes
+        TLS and Agent Nebula security interceptors using official ``a2a-sdk``
+        extension points, then returns the SDK client unchanged. Standard A2A
+        operations must be invoked directly on that client.
+
+        The caller owns ``Client.close()``. ``SecureAgent.close()`` releases the
+        associated Platform credential-provider resources.
+        """
+        protocol_type, configuration = self._require_client_configuration(
+            ProtocolType.A2A
+        )
+        adapter = self._registry.require_client(protocol_type)
+        return await adapter.connect(
+            protocol_config=configuration.configuration_file,
+            target=agent_url,
         )
 
     async def send_message_to(
@@ -424,15 +448,21 @@ class SecureAgent:
         )
 
     async def close(self) -> None:
-        """Close the composed server application when one exists."""
-        if self._application is None:
-            return
-        close = getattr(self._application, "close", None)
-        if close is not None:
-            result = close()
-            if inspect.isawaitable(result):
-                await result
-        self._application = None
+        """Release client integration resources and the composed server application."""
+        for adapter in self._registry.client_adapters:
+            close = getattr(adapter, "close", None)
+            if close is not None:
+                result = close()
+                if inspect.isawaitable(result):
+                    await result
+
+        if self._application is not None:
+            close = getattr(self._application, "close", None)
+            if close is not None:
+                result = close()
+                if inspect.isawaitable(result):
+                    await result
+            self._application = None
 
     def compose(self):
         """Compose the configured server protocol into a Platform application.
