@@ -9,6 +9,8 @@ from uuid import uuid4
 
 from agent_nebula_platform.a2ui import A2UIComposer, A2UIConfiguration, A2UIPresentation, A2UISurface
 from agent_nebula_platform.integrations.nebula import NebulaDiscoveryServiceFactory
+from a2a.server.agent_execution import AgentExecutor
+
 from agent_nebula_platform.skills import (
     SkillDefinition,
     SkillHandler,
@@ -17,6 +19,7 @@ from agent_nebula_platform.skills import (
 )
 
 from .discovery import DiscoveredAgent, DiscoveryNormalizer
+from .protocols.a2a_sdk import A2ASdkExecutableSkill, A2ASdkServerProtocolAdapter
 from .exceptions import SecureAgentConfigurationError, SecureAgentSkillRegistrationError
 from .logging import SecureAgentLoggingConfiguration, load_logging_configuration
 from .protocols import (
@@ -61,6 +64,9 @@ class SecureAgent:
         self._a2ui_config = Path(a2ui_config) if a2ui_config is not None else None
         self._protocols: dict[tuple[ProtocolType, ProtocolRole], ProtocolConfiguration] = {}
         self._skills: dict[str, SkillDefinition] = {}
+        # Experimental native A2A server path; kept separate from generic skills
+        # until Example 15 validates the SDK-first execution model.
+        self._a2a_sdk_skills: dict[str, A2ASdkExecutableSkill] = {}
         self._a2ui_action_handler: A2UIActionHandler | None = None
         self._a2ui_composer: A2UIComposer | None = None
         self._registry = protocol_registry or ProtocolAdapterRegistry(
@@ -204,6 +210,46 @@ class SecureAgent:
             return handler
 
         return register
+
+    def a2a_skill(
+        self,
+        skill_id: str,
+        executor: AgentExecutor,
+        *,
+        schema_contract_id: str | None = None,
+        input_schema: Mapping[str, Any] | None = None,
+        output_schema: Mapping[str, Any] | None = None,
+    ) -> SecureAgent:
+        """Register one A2A skill implemented by a native SDK ``AgentExecutor``.
+
+        This is the isolated SDK-first server API used by Example 15. SecureAgent
+        records skill identity/schema metadata only; it does not wrap the executor
+        or alter its RequestContext, EventQueue, Message, Task, or artifact events.
+        """
+        normalized_id = skill_id.strip()
+        if not normalized_id:
+            raise SecureAgentSkillRegistrationError("Skill identifier must not be blank")
+        if normalized_id in self._a2a_sdk_skills or normalized_id in self._skills:
+            raise SecureAgentSkillRegistrationError(
+                f"Skill is already registered: {normalized_id}"
+            )
+        if not isinstance(executor, AgentExecutor):
+            raise SecureAgentSkillRegistrationError(
+                f"A2A skill '{normalized_id}' executor must implement AgentExecutor"
+            )
+        normalized_contract_id = (schema_contract_id or "").strip() or None
+        if (input_schema is not None or output_schema is not None) and normalized_contract_id is None:
+            raise SecureAgentSkillRegistrationError(
+                f"Skill '{normalized_id}' requires schema_contract_id when a schema is declared"
+            )
+        self._a2a_sdk_skills[normalized_id] = A2ASdkExecutableSkill(
+            skill_id=normalized_id,
+            executor=executor,
+            schema_contract_id=normalized_contract_id,
+            input_schema=dict(input_schema) if input_schema is not None else None,
+            output_schema=dict(output_schema) if output_schema is not None else None,
+        )
+        return self
 
     def _require_a2ui_composer(self) -> A2UIComposer:
         """Return the configuration-backed Platform composer for provider presentations."""
@@ -482,15 +528,28 @@ class SecureAgent:
             raise SecureAgentConfigurationError(
                 "SecureAgent currently requires exactly one configured server protocol"
             )
-        if not self._skills:
+        if self._skills and self._a2a_sdk_skills:
+            raise SecureAgentConfigurationError(
+                "Generic skill() and native a2a_skill() registrations cannot be mixed"
+            )
+        if not self._skills and not self._a2a_sdk_skills:
             raise SecureAgentConfigurationError("At least one business skill is required")
         server = servers[0]
-        adapter = self._registry.require_server(server.protocol)
+        if self._a2a_sdk_skills:
+            if server.protocol is not ProtocolType.A2A:
+                raise SecureAgentConfigurationError(
+                    "a2a_skill() requires an A2A server protocol"
+                )
+            adapter = A2ASdkServerProtocolAdapter()
+            skills = tuple(self._a2a_sdk_skills.values())
+        else:
+            adapter = self._registry.require_server(server.protocol)
+            skills = self.skills
         self._application = adapter.compose(
             application_config=self._application_config,
             protocol_config=server.configuration_file,
             nebula_config=self._nebula_config,
-            skills=self.skills,
+            skills=skills,
             a2ui_action_handler=self._a2ui_action_handler,
             a2ui_config=self._a2ui_config,
         )

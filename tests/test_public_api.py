@@ -452,3 +452,44 @@ def test_llm_observability_is_public() -> None:
     assert LlmCostEstimator is not None
     assert LlmUsageObserver is not None
     assert LlmUsageRecord is not None
+
+
+def test_native_a2a_skill_records_sdk_executor_without_wrapping() -> None:
+    from a2a.server.agent_execution import AgentExecutor
+
+    class NativeExecutor(AgentExecutor):
+        async def execute(self, context, event_queue):
+            pass
+
+        async def cancel(self, context, event_queue):
+            pass
+
+    executor = NativeExecutor()
+    agent = SecureAgent()
+    agent.a2a_skill("report.generate", executor)
+
+    registered = agent._a2a_sdk_skills["report.generate"]
+    assert registered.executor is executor
+
+
+def test_generic_and_native_a2a_skills_cannot_be_mixed() -> None:
+    from a2a.server.agent_execution import AgentExecutor
+
+    class NativeExecutor(AgentExecutor):
+        async def execute(self, context, event_queue):
+            pass
+
+        async def cancel(self, context, event_queue):
+            pass
+
+    agent = SecureAgent()
+    agent.use_protocol("a2a", role="server", config="a2aserver.conf")
+
+    @agent.skill("hello")
+    def hello(payload):
+        return payload
+
+    agent.a2a_skill("report.generate", NativeExecutor())
+
+    with pytest.raises(SecureAgentConfigurationError, match="cannot be mixed"):
+        agent.compose()
