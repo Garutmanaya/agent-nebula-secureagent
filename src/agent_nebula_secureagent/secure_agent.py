@@ -175,7 +175,8 @@ class SecureAgent:
         self._application = SecureAgentA2AServer(
             configuration_file=self._a2a_server_config,
             skills=tuple(self._a2a_skills.values()),
-            logging=self.logging,
+            application_config=self._application_config,
+            nebula_config=self._nebula_config,
         )
         return self._application
 
@@ -184,7 +185,10 @@ class SecureAgent:
         self.compose().run()
 
     async def close(self) -> None:
-        """Release client-side security resources."""
+        """Release Runtime and client-side resources."""
+        if self._application is not None:
+            await self._application.close()
+            self._application = None
         if self._a2a_client_integration is not None:
             await self._a2a_client_integration.close()
             self._a2a_client_integration = None

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from a2a.client import Client
 from a2a.types import AgentCard
-from agent_nebula_platform.a2a import A2AClient
+from agent_nebula_platform.a2a.client import A2AClient
 from agent_nebula_platform.a2a.config import A2AClientConfigurationLoader
 from agent_nebula_platform.a2a.security import (
     A2AClientSecurityInterceptor,

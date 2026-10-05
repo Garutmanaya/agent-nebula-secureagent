@@ -18,7 +18,7 @@ from .exceptions import (
     SecureAgentProtocolError,
     SecureAgentSkillRegistrationError,
 )
-from .protocols import ProtocolRole, ProtocolType
+from .protocol import ProtocolRole, ProtocolType
 from .secure_agent import SecureAgent
 
 __all__ = [

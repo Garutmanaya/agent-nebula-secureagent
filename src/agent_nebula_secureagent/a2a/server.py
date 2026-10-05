@@ -2,19 +2,16 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import uvicorn
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
-from fastapi import FastAPI
 
-from agent_nebula_platform.a2a import A2ASdkServerAdapter
+from agent_nebula_platform.a2a.runtime import A2APlatformRuntimeComposer
 from agent_nebula_platform.a2a.config import (
     A2AListenerConfigurationLoader,
     A2AServerConfigurationService,
@@ -25,13 +22,12 @@ from agent_nebula_platform.a2a.extensions import (
     selected_skill_id,
     validate_executable_skills,
 )
-from agent_nebula_platform.a2a.security import A2AServerSecurityFactory
-from agent_nebula_platform.a2a.security.server import (
-    A2AConfiguredSecurityLoader,
-    A2AServerSecurityService,
+from agent_nebula_platform.a2a.security import (
+    A2AAuthorizedRequestHandler,
+    A2AServerSecurityFactory,
 )
+from agent_nebula_platform.a2a.security.server import A2AConfiguredSecurityLoader
 
-from ..logging import SecureAgentLoggingConfiguration, create_uvicorn_log_config
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,13 +44,8 @@ class A2AExecutableSkill:
 class _SkillDispatcher(AgentExecutor):
     """Dispatch only the Nebula skill-selection extension; execution stays native."""
 
-    def __init__(
-        self,
-        skills: tuple[A2AExecutableSkill, ...],
-        security: A2AServerSecurityService,
-    ) -> None:
+    def __init__(self, skills: tuple[A2AExecutableSkill, ...]) -> None:
         self._skills = {skill.skill_id: skill.executor for skill in skills}
-        self._security = security
         self._task_skills: dict[str, str] = {}
 
     async def execute(self, context: RequestContext, event_queue: EventQueue) -> None:
@@ -72,15 +63,9 @@ class _SkillDispatcher(AgentExecutor):
         if executor is None:
             raise ValueError(f"Selected A2A skill is not registered: {skill_id}")
 
-        # A2A authentication happens at HTTP ingress when the applicable
-        # AgentCard requirement is already known. AgentSkill requirements cannot
-        # be enforced there: the selected skill is carried by the Nebula
-        # skill-selection extension and is resolved only from RequestContext.
-        # Authorize the resolved skill here, before any application executor runs.
-        self._security.authorize_skill(
-            skill_id=skill_id,
-            call_context=context.call_context,
-        )
+        # Authentication and skill authorization are complete before a2a-sdk
+        # invokes this dispatcher. This class only routes the selected skill to
+        # its application AgentExecutor.
 
         if context.task_id is not None:
             self._task_skills[context.task_id] = skill_id
@@ -107,7 +92,8 @@ class SecureAgentA2AServer:
         *,
         configuration_file: Path,
         skills: tuple[A2AExecutableSkill, ...],
-        logging: SecureAgentLoggingConfiguration,
+        application_config: Path,
+        nebula_config: Path | None,
     ) -> None:
         server = A2AServerConfigurationService().load(configuration_file)
         listener = A2AListenerConfigurationLoader().load(configuration_file)
@@ -124,53 +110,35 @@ class SecureAgentA2AServer:
             trust_bundle_file=listener.trust_bundle_file,
             authenticators=authenticators,
         )
-        handler = DefaultRequestHandler(
-            agent_executor=_SkillDispatcher(skills, self._security.service),
+        native_handler = DefaultRequestHandler(
+            agent_executor=_SkillDispatcher(skills),
             task_store=InMemoryTaskStore(),
             agent_card=server.agent_card,
         )
-        self._adapter: A2ASdkServerAdapter | None = None
-
-        @asynccontextmanager
-        async def lifespan(app: FastAPI):
-            del app
-            assert self._adapter is not None
-            await self._adapter.start()
-            try:
-                yield
-            finally:
-                await self._adapter.close()
-
-        self._app = FastAPI(lifespan=lifespan)
-        self._adapter = A2ASdkServerAdapter(
-            app=self._app,
+        handler = A2AAuthorizedRequestHandler(
+            inner=native_handler,
             agent_card=server.agent_card,
-            agent_card_route=server.agent_card_route,
-            request_handler=handler,
             security=self._security.service,
-            tls=listener.tls,
         )
-        self._listener = listener
-        self._logging = logging
+        # Keep native a2a-sdk request handling, but host it inside the existing
+        # Platform Runtime. The Runtime is required for restricted configuration
+        # paths and for onboarding, health, metrics, telemetry, state and lifecycle.
+        self._runtime = A2APlatformRuntimeComposer().compose(
+            application_config=application_config,
+            server_config=configuration_file,
+            nebula_config=nebula_config,
+            server_configuration=server,
+            listener=listener,
+            request_handler=handler,
+            security=self._security,
+        )
 
     @property
-    def application(self) -> FastAPI:
-        return self._app
+    def application(self):
+        return self._runtime.app
 
     def run(self) -> None:
-        tls = self._listener.tls
-        uvicorn.run(
-            self._app,
-            host=self._listener.host,
-            port=self._listener.port,
-            ssl_certfile=str(tls.certificate_file) if tls.enabled else None,
-            ssl_keyfile=str(tls.private_key_file) if tls.enabled else None,
-            ssl_ca_certs=str(tls.trust_bundle) if tls.enabled and tls.trust_bundle else None,
-            ssl_cert_reqs=2 if tls.require_client_certificate else 0,
-            log_config=create_uvicorn_log_config(
-                self._logging,
-                application_loggers=("agent_nebula_platform",),
-            ),
-            access_log=self._logging.console_logging,
-            log_level=self._logging.log_level.lower(),
-        )
+        self._runtime.run()
+
+    async def close(self) -> None:
+        await self._runtime.close()
