@@ -26,12 +26,13 @@ class SecureAgent:
         a2ui_config: str | Path | None = None,
         protocol_registry: object | None = None,
     ) -> None:
-        # ``a2ui_config`` and ``protocol_registry`` remain accepted only so this
-        # migration does not break construction. A2UI and legacy A2A adapters are
-        # deliberately not part of the new A2A path.
-        del a2ui_config, protocol_registry
+        # ``protocol_registry`` remains accepted only for construction compatibility.
+        # A2UI keeps its independent configuration file and is composed into the
+        # native A2A Agent Card only when enabled.
+        del protocol_registry
         self._application_config = Path(config)
         self._nebula_config = Path(nebula_config) if nebula_config is not None else None
+        self._a2ui_config = Path(a2ui_config) if a2ui_config is not None else None
         self._a2a_server_config: Path | None = None
         self._a2a_client_config: Path | None = None
         self._a2a_skills: dict[str, A2AExecutableSkill] = {}
@@ -177,6 +178,7 @@ class SecureAgent:
             skills=tuple(self._a2a_skills.values()),
             application_config=self._application_config,
             nebula_config=self._nebula_config,
+            a2ui_config=self._a2ui_config,
         )
         return self._application
 

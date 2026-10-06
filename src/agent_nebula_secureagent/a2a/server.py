@@ -4,12 +4,18 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+
+import httpx
 from typing import Any
 
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
+from a2a.server.tasks.base_push_notification_sender import BasePushNotificationSender
+from a2a.server.tasks.inmemory_push_notification_config_store import (
+    InMemoryPushNotificationConfigStore,
+)
 
 from agent_nebula_platform.a2a.runtime import A2APlatformRuntimeComposer
 from agent_nebula_platform.a2a.config import (
@@ -17,6 +23,7 @@ from agent_nebula_platform.a2a.config import (
     A2AServerConfigurationService,
 )
 from agent_nebula_platform.a2a.extensions import (
+    ensure_a2ui_extension,
     ensure_schema_contract_extension,
     ensure_skill_selection_extension,
     selected_skill_id,
@@ -27,6 +34,7 @@ from agent_nebula_platform.a2a.security import (
     A2AServerSecurityFactory,
 )
 from agent_nebula_platform.a2a.security.server import A2AConfiguredSecurityLoader
+from agent_nebula_platform.a2ui.configuration import A2UIConfiguration
 
 
 
@@ -94,12 +102,21 @@ class SecureAgentA2AServer:
         skills: tuple[A2AExecutableSkill, ...],
         application_config: Path,
         nebula_config: Path | None,
+        a2ui_config: Path | None,
     ) -> None:
         server = A2AServerConfigurationService().load(configuration_file)
         listener = A2AListenerConfigurationLoader().load(configuration_file)
         validate_executable_skills(server.agent_card, tuple(skill.skill_id for skill in skills))
         ensure_skill_selection_extension(server.agent_card, required=False)
         ensure_schema_contract_extension(server.agent_card, skills)
+        if a2ui_config is not None:
+            a2ui = A2UIConfiguration.load(a2ui_config)
+            if a2ui.enabled:
+                ensure_a2ui_extension(
+                    server.agent_card,
+                    supported_catalog_ids=a2ui.supported_catalog_ids,
+                    accepts_inline_catalogs=a2ui.accepts_inline_catalogs,
+                )
 
         authenticators = A2AConfiguredSecurityLoader().load(
             configuration_file,
@@ -110,10 +127,24 @@ class SecureAgentA2AServer:
             trust_bundle_file=listener.trust_bundle_file,
             authenticators=authenticators,
         )
+        self._push_http_client: httpx.AsyncClient | None = None
+        push_config_store = None
+        push_sender = None
+        if server.agent_card.capabilities.push_notifications:
+            push_config_store = InMemoryPushNotificationConfigStore()
+            self._push_http_client = httpx.AsyncClient()
+            push_sender = BasePushNotificationSender(
+                self._push_http_client,
+                push_config_store,
+            )
+
         native_handler = DefaultRequestHandler(
             agent_executor=_SkillDispatcher(skills),
             task_store=InMemoryTaskStore(),
             agent_card=server.agent_card,
+            push_config_store=push_config_store,
+            push_sender=push_sender,
+            extended_agent_card=server.extended_agent_card,
         )
         handler = A2AAuthorizedRequestHandler(
             inner=native_handler,
@@ -142,3 +173,5 @@ class SecureAgentA2AServer:
 
     async def close(self) -> None:
         await self._runtime.close()
+        if self._push_http_client is not None:
+            await self._push_http_client.aclose()
