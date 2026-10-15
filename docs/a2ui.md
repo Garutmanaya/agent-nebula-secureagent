@@ -4,6 +4,8 @@ SecureAgent exposes A2UI as an optional presentation capability while Agent Nebu
 
 The current implementation targets A2UI `v1.0`. A2UI v1.0 is still evolving; Agent Nebula keeps version-specific models, validation, surfaces, actions, sessions, and capability negotiation in Platform so those details can evolve without moving protocol logic into application skills.
 
+This keeps UI changes (component layout, binding and catalogs) in declarative files while Python handlers produce data. A2UI is optional and does not create a separate authentication path; it is carried through the supported A2A integration.
+
 ## Required application design
 
 A SecureAgent application must keep **presentation definition separate from business logic**.

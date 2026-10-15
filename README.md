@@ -1,120 +1,104 @@
 # Agent Nebula SecureAgent
 
-`agent-nebula-secureagent` is the developer-facing API for building agents on Agent Nebula. It intentionally presents one protocol-neutral programming model: developers define business skills once, select the protocol roles their process needs, and let `agent-nebula-platform` compose the protocol, security, transport, lifecycle, and optional Agent Nebula integration.
+**Build standards-based A2A agents with business skills in Python and protocol, security, and presentation defined through configuration.**
 
-SecureAgent is not a replacement implementation of A2A, MCP, REST, OAuth, DPoP, or Agent Nebula Registry APIs. It is the thin composition facade above `agent-nebula-platform`, which in turn depends on `agent-nebula-sdk` for standards/security primitives.
+[Getting started](docs/getting-started.md) · [Configuration](docs/configuration/README.md) · [Architecture](docs/architecture.md) · [Security](docs/security.md) · [A2UI](docs/a2ui.md) · [Agent Nebula](docs/nebula.md) · [Examples](https://github.com/garutmanaya/agent-nebula-secureagent-examples)
+
+`agent-nebula-secureagent` is the lightweight developer-facing facade over `agent-nebula-platform`. It uses the **official A2A Python SDK** through Platform rather than reimplementing A2A. A2UI is optional. An agent can run standalone without registering with Agent Nebula.
+
+## Why SecureAgent?
+
+Working directly with an A2A server requires assembling protocol handlers, Agent Card metadata, transport hosting, security integration, and lifecycle behavior around application logic. SecureAgent delegates those infrastructure responsibilities to Platform. Developers concentrate on skills while configuring published capabilities and security separately. This reduces duplicated infrastructure code; it does not remove the need to design and test business logic or access policies.
+
+| Capability | What developers gain |
+|---|---|
+| **A2A 1.0** | Official SDK-based messaging, skills, tasks, streaming, and supported bindings via Platform |
+| **One skill API** | Bind Python handlers to published skill identifiers; avoid protocol-specific business implementations |
+| **Configuration-driven design** | Change Agent Cards, endpoints, TLS, OAuth, and Registry settings without rewriting skill handlers |
+| **A2UI v1.0** | Return interactive UI surfaces with declarative `presentation.json` and configured catalogs |
+| **Security integration** | Reuse Platform enforcement and SDK primitives for OAuth, scopes, TLS/mTLS, JWT, and DPoP where configured |
+| **Optional Agent Nebula** | Register and discover agents; use hosted OAuth and policy services for controlled invocation |
+
+## Architecture
 
 ```text
-Application code
-      |
-      v
-agent-nebula-secureagent     developer API, skills, protocol selection
-      |
-      v
-agent-nebula-platform        protocol plugins, security composition, lifecycle,
-      |                      A2UI, health, Registry integration
-      v
-agent-nebula-sdk             OAuth/JWT/JWK/JOSE/DPoP and standards primitives
+Business skills (Python) + configuration + optional A2UI presentation
+                            |
+                            v
+                 agent-nebula-secureagent
+                 (public application facade)
+                            |
+                            v
+                  agent-nebula-platform
+            (A2A/A2UI composition, security, lifecycle)
+                   /                   \
+          official a2a-sdk       agent-nebula-sdk
+                                (security primitives)
+                            |
+                optional Agent Nebula services
+            (Registry, discovery, OAuth, policy)
 ```
 
-## Programming model
+See [architecture and component boundaries](docs/architecture.md). A2A is implemented through the official SDK; REST and MCP are **not currently exposed as working SecureAgent server adapters** ([details](docs/protocols.md)).
 
-SecureAgent follows a configuration-first model. Python is reserved for executable business behavior; Agent Card metadata, published skill definitions, interfaces, security declarations, protocol settings, A2UI capabilities, and Registry integration are configuration. When A2UI is enabled, component topology is declarative JSON rather than Python.
+## Quick start
 
+Requires **Python 3.12**. Install the released package and its declared dependencies:
 
-The public interface is deliberately not `SecureA2AAgent`, `SecureRestAgent`, or `SecureMcpAgent`. `SecureAgent` is the common abstraction. Protocols are selected independently:
+```bash
+python3.12 -m venv .venv
+. .venv/bin/activate
+python -m pip install agent-nebula-secureagent==1.1.1
+```
+
+An A2A server defines its published skills in `a2aserver.conf` and binds executable handlers to those identifiers:
 
 ```python
-from agent_nebula_secureagent import ProtocolType, SecureAgent
+from agent_nebula_secureagent import SecureAgent
 
-agent = SecureAgent(
-    "secureagent.conf",
-    nebula_config="nebula.conf",
-)
-agent.use_protocol(
-    ProtocolType.A2A,
-    role="server",
-    config="a2aserver.conf",
-)
+agent = SecureAgent(config="config/secureagent.conf")
+agent.use_protocol("a2a", role="server", config="config/a2aserver.conf")
 
-@agent.skill("inventory.lookup", description="Look up current inventory")
+@agent.skill("inventory.lookup", description="Look up inventory")
 async def inventory_lookup(payload):
     return {"sku": payload["sku"], "available": 12}
 
 agent.run()
 ```
 
-The skill contains business behavior only. A2A Agent Card parsing, official A2A request handling, OAuth protected-resource composition, DPoP validation, TLS, Agent Nebula registration, health, FastAPI/Uvicorn lifecycle, and shutdown are Platform responsibilities.
+This snippet illustrates the API; it requires valid configuration files. Follow the [complete getting-started guide](docs/getting-started.md) and the [runnable examples](https://github.com/garutmanaya/agent-nebula-secureagent-examples) for complete configurations and server/client commands.
 
-## Protocols
+## Configuration-driven development
 
-The API recognizes `a2a`, `rest`, and `mcp` through `ProtocolType`, so application code and extension contracts do not need protocol-specific SecureAgent classes.
+| File | Responsibility |
+|---|---|
+| `secureagent.conf` | Application identity and generic runtime settings |
+| `a2aserver.conf` | Agent Card, advertised skills, A2A bindings, listener and server security |
+| `a2aclient.conf` | Outbound A2A connections, trust and client authentication |
+| `a2ui.conf` | Optional A2UI capability and component catalogs |
+| `presentation.json` | Optional skill-owned UI component tree, bindings, and actions |
+| `nebula.conf` | Optional Agent Nebula Registry onboarding and registration |
 
-| Protocol | SecureAgent server adapter | Platform capability | Notes |
-|---|---|---|---|
-| A2A 1.0 | Available | Available | Uses the official A2A SDK through Platform. |
-| REST | Not yet exposed by this facade | Platform has REST/FastAPI skill transport | A dedicated SecureAgent REST configuration/composer should be added without changing the public skill model. |
-| MCP | Not yet exposed | Not currently implemented by Platform | The common adapter contract reserves the boundary; SecureAgent does not claim MCP functionality that Platform does not provide. |
+The configuration formats, supported keys, and ownership boundaries are documented in the [configuration reference](docs/configuration/README.md). A2UI presentation remains separate from Python business logic ([A2UI guide](docs/a2ui.md)).
 
-This distinction is intentional: the public API is protocol-neutral, while actual protocol availability is determined by registered Platform-backed adapters.
+## Authentication and authorization
 
-## Agent Nebula integration
+SecureAgent does **not** implement a competing authentication stack. Platform interprets A2A security declarations and composes enforcement; `agent-nebula-sdk` supplies reusable security primitives. Configuration determines which mechanisms are enabled. A trust bundle alone does not enable mTLS, and declaring an OAuth scope does not by itself establish a hosted policy decision. See [security and authorization](docs/security.md).
 
-Agent Nebula integration is optional and independent of A2A. Supplying `nebula.conf` enables Platform's Registry integration for a compatible server composition. For A2A, Platform derives the standard Agent Card URI, builds the registration payload, performs configured onboarding, persists registration state, and uses the configured Registry TLS/authentication policy. Without `nebula.conf`, the A2A server remains a standalone standards-based A2A server.
+## Agent Nebula Enterprise Registry Hub (optional)
 
-Agent Nebula adds enterprise discovery/registration and platform lifecycle integration; it does not replace the underlying A2A protocol or its endpoint security.
+[Agent Nebula](https://agentnebula.ai) provides hosted A2A Registry and discovery, Explorer, Playground, OAuth, policy, and account-management services. Its organizational model is **Publisher → Provider → Agents**. Developers can register publicly reachable agents and test OAuth-scoped, policy-controlled invocation; local standalone examples do not require these services.
 
-## Configuration ownership
-
-Configuration is split by responsibility:
-
-- `secureagent.conf` — protocol-neutral application identity and filesystem roots.
-- `a2aserver.conf` — A2A Agent Card, listener, TLS, interfaces, skills, and A2A security declaration.
-- `a2aclient.conf` — outbound A2A transport, TLS, credentials, and optional discovered OAuth client identity.
-- `nebula.conf` — optional Agent Nebula Registry endpoint, TLS, registration authentication, retry, and state behavior.
-- REST/MCP — no SecureAgent-specific configuration format is invented until the corresponding Platform composition contract exists.
-
-Every currently supported field is documented under [docs/configuration](docs/configuration/README.md).
-
-## Package structure
-
-```text
-src/agent_nebula_secureagent/
-├── secure_agent.py          # protocol-neutral public facade
-├── exceptions.py            # stable facade exceptions
-└── protocols/
-    ├── base.py              # ProtocolType/Role and adapter contract
-    ├── registry.py          # adapter registration and lookup
-    └── a2a.py               # thin Platform A2A adapter
-```
-
-Business models (`SkillDefinition`, `SkillInvocation`, `SkillResult`) are owned by Platform and reused rather than duplicated.
-
-## Plugin and adapter composition
-
-SecureAgent does not maintain a second plugin framework. `ProtocolAdapterRegistry` selects a protocol adapter; the adapter translates facade intent into Platform inputs. Platform then composes its own `RuntimePlugin` implementations and lifecycle phases.
-
-```text
-SecureAgent
-  -> ProtocolAdapterRegistry
-      -> A2AServerProtocolAdapter
-          -> A2AStandaloneApplicationComposer (Platform)
-              -> RuntimeFeatureComponents
-              -> Platform plugins
-              -> AgentRuntime
-```
-
-This keeps protocol code out of the facade and prevents duplication of Platform's plugin lifecycle.
+Start with [Agent Nebula integration](docs/nebula.md), then follow the [platform-integrated examples](https://github.com/garutmanaya/agent-nebula-secureagent-examples/tree/main/examples-nebula) for onboarding, registration, and invocation scenarios.
 
 ## Documentation
 
-- [Getting started](docs/getting-started.md)
-- [Architecture](docs/architecture.md)
-- [Public API](docs/api/README.md)
-- [Configuration reference](docs/configuration/README.md)
-- [A2A](docs/a2a.md)
-- [REST and MCP](docs/protocols.md)
-- [Skills](docs/skills.md)
-- [A2UI](docs/a2ui.md)
-- [Agent Nebula integration](docs/nebula.md)
-- [Security boundary](docs/security.md)
+- [Getting started](docs/getting-started.md) · [Public API](docs/api/README.md) · [Skills](docs/skills.md)
+- [Architecture](docs/architecture.md) · [A2A](docs/a2a.md) · [A2UI](docs/a2ui.md)
+- [Configuration reference](docs/configuration/README.md) · [Security](docs/security.md)
+- [Agent Nebula services and integration](docs/nebula.md) · [REST/MCP status](docs/protocols.md)
+- [A2A Schema Contract extension](docs/agent-nebula-a2a-schema-contract-extension.md)
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE). See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance.

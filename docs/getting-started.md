@@ -21,6 +21,18 @@ agent-nebula-sdk                OAuth/JWT/DPoP/mTLS/PKI primitives
 
 Application code should not import Platform or SDK APIs directly. SecureAgent is the supported application boundary.
 
+## Installation
+
+Requires Python 3.12. Install the release from PyPI once its declared dependencies are available:
+
+```bash
+python3.12 -m venv .venv
+. .venv/bin/activate
+python -m pip install agent-nebula-secureagent==1.1.1
+```
+
+For complete, runnable configuration files and client/server commands, use the [examples repository](https://github.com/garutmanaya/agent-nebula-secureagent-examples). The minimal code below is illustrative and does not run without its configuration files.
+
 ## Project shape
 
 A SecureAgent project should keep executable business behavior separate from configuration and presentation:

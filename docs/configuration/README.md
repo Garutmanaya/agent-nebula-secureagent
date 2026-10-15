@@ -23,3 +23,9 @@ There is no `application.conf`. Generic runtime/application settings are owned b
 A2UI configuration is intentionally independent from A2A configuration. Do not place `[a2ui]` settings in `a2aserver.conf` or `a2aclient.conf`.
 
 There is intentionally no invented `mcpserver.conf` or SecureAgent REST format at this time. Configuration formats are added only when Platform owns the corresponding implementation and validation contract.
+
+## How the files work together
+
+`agent.py` constructs `SecureAgent` with `secureagent.conf`, then selects an A2A server or client with its corresponding configuration. `a2aserver.conf` is authoritative for the published Agent Card and skill identifiers; Python decorators bind executable handlers to those identifiers. Optional `a2ui.conf` and skill `presentation.json` provide UI capability and layout. Optional `nebula.conf` enables hosted Registry onboarding without changing the business skill code.
+
+For a complete project layout and code example, see [Getting started](../getting-started.md).

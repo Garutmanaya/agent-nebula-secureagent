@@ -2,6 +2,10 @@
 
 SecureAgent is a facade, not a runtime. Its stable responsibilities are to collect developer intent, register transport-neutral business skills, select protocol roles, and delegate composition to Platform.
 
+## Why the facade accelerates development
+
+SecureAgent keeps skill handlers independent of A2A protocol envelopes, HTTP hosting, Agent Card parsing, and security implementation. Infrastructure is configured and composed by Platform, so a developer can reuse one business handler while changing supported bindings, published metadata, or optional A2UI presentation. This is an architectural reduction in boilerplate, not a measured performance claim.
+
 ## Dependency rule
 
 `agent-nebula-secureagent -> agent-nebula-platform -> agent-nebula-sdk`.
