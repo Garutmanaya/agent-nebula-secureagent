@@ -2,7 +2,7 @@
 
 **Build standards-based A2A agents with business skills in Python and protocol, security, and presentation defined through configuration.**
 
-[Getting started](docs/getting-started.md) · [Configuration](docs/configuration/README.md) · [Architecture](docs/architecture.md) · [Security](docs/security.md) · [A2UI](docs/a2ui.md) · [Agent Nebula](docs/nebula.md) · [Examples](https://github.com/garutmanaya/agent-nebula-secureagent-examples)
+[Getting started](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/getting-started.md) · [Configuration](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/configuration/README.md) · [Architecture](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/architecture.md) · [Security](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/security.md) · [A2UI](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/a2ui.md) · [Agent Nebula](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/nebula.md) · [Examples](https://github.com/garutmanaya/agent-nebula-secureagent-examples)
 
 `agent-nebula-secureagent` is the lightweight developer-facing facade over `agent-nebula-platform`. It uses the **official A2A Python SDK** through Platform rather than reimplementing A2A. A2UI is optional. An agent can run standalone without registering with Agent Nebula.
 
@@ -39,16 +39,16 @@ Business skills (Python) + configuration + optional A2UI presentation
             (Registry, discovery, OAuth, policy)
 ```
 
-See [architecture and component boundaries](docs/architecture.md). A2A is implemented through the official SDK; REST and MCP are **not currently exposed as working SecureAgent server adapters** ([details](docs/protocols.md)).
+See [architecture and component boundaries](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/architecture.md). A2A is implemented through the official SDK; REST and MCP are **not currently exposed as working SecureAgent server adapters** ([details](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/protocols.md)).
 
 ## Quick start
 
-Requires **Python 3.12**. Install the released package and its declared dependencies:
+Requires **Python 3.12** and Agent Nebula Platform **5.x** (which supplies the Agent Nebula SDK dependency). Install the released package and its declared dependencies:
 
 ```bash
 python3.12 -m venv .venv
 . .venv/bin/activate
-python -m pip install agent-nebula-secureagent==1.1.1
+python -m pip install agent-nebula-secureagent
 ```
 
 An A2A server defines its published skills in `a2aserver.conf` and binds executable handlers to those identifiers:
@@ -66,7 +66,7 @@ async def inventory_lookup(payload):
 agent.run()
 ```
 
-This snippet illustrates the API; it requires valid configuration files. Follow the [complete getting-started guide](docs/getting-started.md) and the [runnable examples](https://github.com/garutmanaya/agent-nebula-secureagent-examples) for complete configurations and server/client commands.
+This snippet illustrates the API; it requires valid configuration files. Follow the [complete getting-started guide](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/getting-started.md) and the [runnable examples](https://github.com/garutmanaya/agent-nebula-secureagent-examples) for complete configurations and server/client commands.
 
 ## Configuration-driven development
 
@@ -79,26 +79,26 @@ This snippet illustrates the API; it requires valid configuration files. Follow 
 | `presentation.json` | Optional skill-owned UI component tree, bindings, and actions |
 | `nebula.conf` | Optional Agent Nebula Registry onboarding and registration |
 
-The configuration formats, supported keys, and ownership boundaries are documented in the [configuration reference](docs/configuration/README.md). A2UI presentation remains separate from Python business logic ([A2UI guide](docs/a2ui.md)).
+The configuration formats, supported keys, and ownership boundaries are documented in the [configuration reference](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/configuration/README.md). A2UI presentation remains separate from Python business logic ([A2UI guide](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/a2ui.md)).
 
 ## Authentication and authorization
 
-SecureAgent does **not** implement a competing authentication stack. Platform interprets A2A security declarations and composes enforcement; `agent-nebula-sdk` supplies reusable security primitives. Configuration determines which mechanisms are enabled. A trust bundle alone does not enable mTLS, and declaring an OAuth scope does not by itself establish a hosted policy decision. See [security and authorization](docs/security.md).
+SecureAgent does **not** implement a competing authentication stack. Platform interprets A2A security declarations and composes enforcement; `agent-nebula-sdk` supplies reusable security primitives. Configuration determines which mechanisms are enabled. A trust bundle alone does not enable mTLS, and declaring an OAuth scope does not by itself establish a hosted policy decision. See [security and authorization](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/security.md).
 
 ## Agent Nebula Enterprise Registry Hub (optional)
 
 [Agent Nebula](https://agentnebula.ai) provides hosted A2A Registry and discovery, Explorer, Playground, OAuth, policy, and account-management services. Its organizational model is **Publisher → Provider → Agents**. Developers can register publicly reachable agents and test OAuth-scoped, policy-controlled invocation; local standalone examples do not require these services.
 
-Start with [Agent Nebula integration](docs/nebula.md), then follow the [platform-integrated examples](https://github.com/garutmanaya/agent-nebula-secureagent-examples/tree/main/examples-nebula) for onboarding, registration, and invocation scenarios.
+Start with [Agent Nebula integration](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/nebula.md), then follow the [platform-integrated examples](https://github.com/garutmanaya/agent-nebula-secureagent-examples/tree/main/examples-nebula) for onboarding, registration, and invocation scenarios.
 
 ## Documentation
 
-- [Getting started](docs/getting-started.md) · [Public API](docs/api/README.md) · [Skills](docs/skills.md)
-- [Architecture](docs/architecture.md) · [A2A](docs/a2a.md) · [A2UI](docs/a2ui.md)
-- [Configuration reference](docs/configuration/README.md) · [Security](docs/security.md)
-- [Agent Nebula services and integration](docs/nebula.md) · [REST/MCP status](docs/protocols.md)
-- [A2A Schema Contract extension](docs/agent-nebula-a2a-schema-contract-extension.md)
+- [Getting started](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/getting-started.md) · [Public API](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/api/README.md) · [Skills](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/skills.md)
+- [Architecture](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/architecture.md) · [A2A](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/a2a.md) · [A2UI](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/a2ui.md)
+- [Configuration reference](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/configuration/README.md) · [Security](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/security.md)
+- [Agent Nebula services and integration](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/nebula.md) · [REST/MCP status](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/protocols.md)
+- [A2A Schema Contract extension](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/docs/agent-nebula-a2a-schema-contract-extension.md)
 
 ## License
 
-Licensed under the [Apache License, Version 2.0](LICENSE). See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance.
+Licensed under the [Apache License, Version 2.0](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/LICENSE). See [CONTRIBUTING.md](https://github.com/garutmanaya/agent-nebula-secureagent/blob/main/CONTRIBUTING.md) for contribution guidance.

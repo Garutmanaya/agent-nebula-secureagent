@@ -5,11 +5,11 @@ build-backend = "hatchling.build"
 [project]
 name = "agent-nebula-secureagent"
 version = "1.1.1"
-description = "Configuration-driven framework for secure A2A agents and A2UI experiences"
-license = "Apache-2.0"
+description = "Configuration-driven Python facade for building secure A2A agents on Agent Nebula Platform"
+readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.12,<3.13"
 dependencies = [
-  "agent-nebula-platform==1.1.1",
+  "agent-nebula-platform>=5.0.0,<6.0.0",
 ]
 
 [dependency-groups]
